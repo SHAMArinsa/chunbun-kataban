@@ -1,14 +1,20 @@
 import uuid
 from pathlib import Path
-from urllib.parse import quote
+import mimetypes
 
-import httpx
 from fastapi import HTTPException
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
+from vercel.blob import BlobClient
+from vercel.blob.errors import BlobError, BlobNotFoundError
 
 from app.core.config import settings
 
 _SAFE_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+
+
+def _blob_client() -> BlobClient:
+    """Create a server-only client for the configured private Vercel Blob store."""
+    return BlobClient(token=settings.BLOB_READ_WRITE_TOKEN)
 
 
 def _sanitize_filename(filename: str) -> str:
@@ -27,13 +33,17 @@ def save(content: bytes, resource_type: str, original_filename: str) -> str:
         full_path.write_bytes(content)
         return relative_path
 
-    response = httpx.put(
-        _blob_url(relative_path), content=content,
-        headers={"Authorization": f"Bearer {settings.BLOB_READ_WRITE_TOKEN}", "x-add-random-suffix": "0"},
-        timeout=60,
-    )
-    if response.is_error:
-        raise RuntimeError("Unable to store uploaded file in Vercel Blob")
+    content_type = mimetypes.guess_type(original_filename)[0] or "application/octet-stream"
+    try:
+        _blob_client().put(
+            relative_path,
+            content,
+            access="private",
+            content_type=content_type,
+            add_random_suffix=False,
+        )
+    except BlobError as exc:
+        raise RuntimeError("Unable to store uploaded file in Vercel Blob") from exc
     return relative_path
 
 
@@ -43,9 +53,10 @@ def resolve(relative_path: str) -> Path:
 
 def delete(relative_path: str) -> None:
     if settings.STORAGE_PROVIDER == "vercel_blob":
-        response = httpx.delete(_blob_url(relative_path), headers={"Authorization": f"Bearer {settings.BLOB_READ_WRITE_TOKEN}"}, timeout=30)
-        if response.status_code not in (200, 202, 204, 404):
-            raise RuntimeError("Unable to delete file from Vercel Blob")
+        try:
+            _blob_client().delete(relative_path)
+        except BlobError as exc:
+            raise RuntimeError("Unable to delete file from Vercel Blob") from exc
         return
     path = resolve(relative_path)
     if path.exists():
@@ -61,18 +72,18 @@ def download_response(relative_path: str, filename: str, media_type: str | None 
         from fastapi.responses import FileResponse
         return FileResponse(path, filename=filename, media_type=media_type)
 
-    response = httpx.get(_blob_url(relative_path), headers={"Authorization": f"Bearer {settings.BLOB_READ_WRITE_TOKEN}"}, timeout=60)
-    if response.status_code == 404:
+    try:
+        result = _blob_client().get(relative_path, access="private")
+    except BlobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="File missing on server") from exc
+    except BlobError as exc:
+        raise HTTPException(status_code=502, detail="File storage is temporarily unavailable") from exc
+    if result is None or result.status_code != 200 or result.stream is None:
         raise HTTPException(status_code=404, detail="File missing on server")
-    if response.is_error:
-        raise HTTPException(status_code=502, detail="File storage is temporarily unavailable")
+
     safe_filename = filename.replace('"', "").replace("\r", "").replace("\n", "")
-    return Response(
-        content=response.content,
-        media_type=media_type or response.headers.get("content-type", "application/octet-stream"),
+    return StreamingResponse(
+        result.stream,
+        media_type=media_type or result.blob.content_type or "application/octet-stream",
         headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'},
     )
-
-
-def _blob_url(relative_path: str) -> str:
-    return "https://blob.vercel-storage.com/" + quote(relative_path, safe="/")
