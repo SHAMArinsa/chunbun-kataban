@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f8fafc;
+}
+
+@keyframes timer-blink-red {
+  0%, 49% {
+    background-color: #dc2626;
+    color: #ffffff;
+  }
+  50%, 100% {
+    background-color: #7f1d1d;
+    color: #fecaca;
+  }
+}
+
+.timer-blink {
+  animation: timer-blink-red 1s steps(1, end) infinite;
+}
