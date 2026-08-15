@@ -16,3 +16,4 @@ passlib[bcrypt]
 httpx
 openpyxl
 python-docx
+vercel>=0.5.0
