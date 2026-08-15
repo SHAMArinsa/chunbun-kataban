@@ -37,6 +37,8 @@ import InternshipDetail from './pages/InternshipDetail'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import CookiePolicy from './pages/CookiePolicy'
 import Terms from './pages/Terms'
+import NdaPolicy from './pages/NdaPolicy'
+import RefundCancellationPolicy from './pages/RefundCancellationPolicy'
 import Contact from './pages/Contact'
 import CookieConsent from './components/CookieConsent'
 
@@ -104,6 +106,8 @@ function App() {
               <Route path="/privacy" element={<><SiteHeader /><PrivacyPolicy /><SiteFooter /></>} />
               <Route path="/cookies" element={<><SiteHeader /><CookiePolicy /><SiteFooter /></>} />
               <Route path="/terms" element={<><SiteHeader /><Terms /><SiteFooter /></>} />
+              <Route path="/refund-cancellation-policy" element={<><SiteHeader /><RefundCancellationPolicy /><SiteFooter /></>} />
+              <Route path="/nda" element={<><SiteHeader /><NdaPolicy /><SiteFooter /></>} />
               <Route path="/contact" element={<><SiteHeader /><Contact /><SiteFooter /></>} />
               <Route path="/projects" element={<><SiteHeader /><PublicPage page="projects" /><SiteFooter /></>} />
               <Route path="/about" element={<><SiteHeader /><PublicPage page="about" /><SiteFooter /></>} />
