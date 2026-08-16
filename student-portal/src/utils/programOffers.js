@@ -1,6 +1,14 @@
 export function hasActiveOffer(program) {
-  const today = new Date().toISOString().slice(0, 10)
-  return Boolean(program?.offer_price_inr && program?.offer_price_usd && program.offer_start_date <= today && today <= program.offer_end_date)
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return Boolean(
+    Number(program?.offer_price_inr) > 0 &&
+    Number(program?.offer_price_usd) > 0 &&
+    program.offer_start_date &&
+    program.offer_end_date &&
+    program.offer_start_date <= today &&
+    today <= program.offer_end_date,
+  )
 }
 
 export function priceLabel(inr, usd, includeGst = false) {

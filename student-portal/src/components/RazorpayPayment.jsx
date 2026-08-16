@@ -19,13 +19,20 @@ function loadRazorpayScript() {
   })
 }
 
-export default function RazorpayPayment({ paymentId, studentName, studentEmail, onSuccess, onError }) {
+export default function RazorpayPayment({ paymentId, studentName, studentEmail, onSuccess, onError, onCancel }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const startPayment = async () => {
     setLoading(true)
     setError(null)
+    let paymentCompleted = false
+    let checkoutCancelled = false
+    const abandonCheckout = () => {
+      if (paymentCompleted || checkoutCancelled) return
+      checkoutCancelled = true
+      onCancel?.()
+    }
     try {
       await loadRazorpayScript()
       const { data: order } = await apiClient.post(`/payments/${paymentId}/razorpay/create-order`)
@@ -46,6 +53,7 @@ export default function RazorpayPayment({ paymentId, studentName, studentEmail, 
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             })
+            paymentCompleted = true
             onSuccess(payment)
           } catch (err) {
             setError(err.response?.data?.detail || 'Payment verification failed')
@@ -53,12 +61,16 @@ export default function RazorpayPayment({ paymentId, studentName, studentEmail, 
           }
         },
         modal: {
-          ondismiss: () => setLoading(false),
+          ondismiss: () => {
+            setLoading(false)
+            abandonCheckout()
+          },
         },
       })
       rzp.on('payment.failed', (resp) => {
         setError(resp.error?.description || 'Payment failed')
         setLoading(false)
+        abandonCheckout()
       })
       rzp.open()
     } catch (err) {
