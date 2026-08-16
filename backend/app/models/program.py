@@ -40,6 +40,10 @@ class InternshipProgram(Base):
     duration_weeks: Mapped[int] = mapped_column(Integer, nullable=False)
     price_inr: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     price_usd: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    offer_price_inr: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    offer_price_usd: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    offer_start_date: Mapped[date | None] = mapped_column(Date)
+    offer_end_date: Mapped[date | None] = mapped_column(Date)
     gst_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=18)
     platform_fee_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=10)
     features: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -161,6 +165,7 @@ class Payment(Base):
     razorpay_order_id: Mapped[str | None] = mapped_column(String(100), unique=True)
     razorpay_payment_id: Mapped[str | None] = mapped_column(String(100))
     razorpay_signature: Mapped[str | None] = mapped_column(String(255))
+    invoice_number: Mapped[str | None] = mapped_column(String(16), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     enrollment: Mapped["ProgramEnrollment"] = relationship(back_populates="payments")

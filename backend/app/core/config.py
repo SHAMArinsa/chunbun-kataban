@@ -35,8 +35,11 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "no-reply@arinsaaiminds.com"
 
-    RAZORPAY_KEY_ID: str = ""
-    RAZORPAY_KEY_SECRET: str = ""
+    # Prefer explicit live credentials when present, while retaining the existing
+    # names for local/test environments.
+    RAZORPAY_KEY_ID: str = Field("", validation_alias=AliasChoices("RAZORPAY_LIVE_KEY_ID", "RAZORPAY_KEY_ID"))
+    RAZORPAY_KEY_SECRET: str = Field("", validation_alias=AliasChoices("RAZORPAY_LIVE_KEY_SECRET", "RAZORPAY_KEY_SECRET"))
+    RAZORPAY_WEBHOOK_SECRET: str = ""
 
     @property
     def is_production(self) -> bool:

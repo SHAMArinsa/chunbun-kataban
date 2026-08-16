@@ -34,6 +34,10 @@ class ProgramOut(BaseModel):
     duration_weeks: int
     price_inr: float
     price_usd: float
+    offer_price_inr: float | None = None
+    offer_price_usd: float | None = None
+    offer_start_date: date | None = None
+    offer_end_date: date | None = None
     gst_percent: float
     platform_fee_percent: float
     features: dict
@@ -57,6 +61,10 @@ class ProgramUpdateRequest(BaseModel):
     duration_weeks: int | None = None
     price_inr: float | None = None
     price_usd: float | None = None
+    offer_price_inr: float | None = None
+    offer_price_usd: float | None = None
+    offer_start_date: date | None = None
+    offer_end_date: date | None = None
     gst_percent: float | None = None
     platform_fee_percent: float | None = None
     features: dict | None = None

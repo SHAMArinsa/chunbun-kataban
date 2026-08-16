@@ -42,6 +42,13 @@ def update_program(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Program not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(program, field, value)
+    offer_values = [program.offer_price_inr, program.offer_price_usd, program.offer_start_date, program.offer_end_date]
+    if any(value is not None for value in offer_values) and any(value is None for value in offer_values):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Offer prices and start/end dates must all be provided")
+    if program.offer_start_date and program.offer_end_date and program.offer_end_date < program.offer_start_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Offer end date cannot be before the start date")
+    if program.offer_price_inr is not None and (program.offer_price_inr <= 0 or program.offer_price_usd <= 0):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Offer prices must be greater than zero")
     db.add(program)
     log_activity(db, admin.user_id, "admin", "update_program", "internship_programs", program.id, f"Updated {program.name}")
     db.commit()

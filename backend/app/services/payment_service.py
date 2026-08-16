@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import secrets
+from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import HTTPException, status
@@ -8,16 +9,26 @@ from app.models.people import Student
 from app.models.program import InternshipProgram, Payment, ProgramEnrollment
 
 
+def generate_invoice_number() -> str:
+    return "".join(str(secrets.randbelow(10)) for _ in range(16))
+
+
 def compute_payment(program: InternshipProgram, student: Student) -> dict:
     """Computes currency/base/fee/total per the pricing rules: INR+GST for Indian citizens, USD+platform fee for international."""
+    offer_is_active = (
+        program.offer_start_date is not None
+        and program.offer_end_date is not None
+        and program.offer_start_date <= date.today() <= program.offer_end_date
+    )
+
     if student.citizenship_status == "indian":
         currency = "INR"
-        base_amount = Decimal(str(program.price_inr))
+        base_amount = Decimal(str(program.offer_price_inr if offer_is_active and program.offer_price_inr is not None else program.price_inr))
         fee_type = "gst"
         fee_percent = Decimal(str(program.gst_percent))
     elif student.citizenship_status == "international":
         currency = "USD"
-        base_amount = Decimal(str(program.price_usd))
+        base_amount = Decimal(str(program.offer_price_usd if offer_is_active and program.offer_price_usd is not None else program.price_usd))
         fee_type = "platform_fee"
         fee_percent = Decimal(str(program.platform_fee_percent))
     else:
@@ -49,6 +60,8 @@ def activate_payment(
     """Marks a payment paid and activates its linked enrollment. Shared by the admin
     manual mark-paid path and the Razorpay verified-payment path so both stay in sync."""
     payment.status = "paid"
+    if not payment.invoice_number:
+        payment.invoice_number = generate_invoice_number()
     payment.payment_method = method
     payment.paid_at = datetime.now(timezone.utc)
     if admin_id is not None:
