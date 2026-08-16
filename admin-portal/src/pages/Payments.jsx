@@ -49,6 +49,20 @@ export default function Payments() {
     { revenue: 0 }
   )
 
+  const downloadInvoice = async (payment) => {
+    try {
+      const response = await apiClient.get(`/payments/${payment.id}/invoice`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `ARINSA-${String(payment.id).padStart(6, '0')}.pdf`
+      link.click()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      push(err.response?.data?.detail || 'Could not generate the invoice', 'error')
+    }
+  }
+
   const columns = [
     { key: 'student_name', header: 'Student', render: (r) => <button className="text-brand-700 hover:underline" onClick={() => navigate(`/payments/${r.id}`)}>{r.student_name}</button> },
     { key: 'student_id', header: 'Student ID' },
@@ -65,6 +79,7 @@ export default function Payments() {
       render: (r) => (
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => navigate(`/payments/${r.id}`)}>View</Button>
+          {r.status === 'paid' && <Button variant="secondary" onClick={() => downloadInvoice(r)}>Invoice</Button>}
           {r.status === 'pending' && (
             <Button onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>Mark Paid</Button>
           )}
