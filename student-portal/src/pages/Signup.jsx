@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Check } from 'lucide-react'
@@ -12,10 +12,12 @@ import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
 import FileUpload from '../components/ui/FileUpload'
 import NdaAgreement from '../components/NdaAgreement'
+import { NDA_TEXT } from '../content/nda'
 import RazorpayPayment from '../components/RazorpayPayment'
 import './Signup.css'
 
 const STEPS = ['Plan', 'Account & NDA', 'Payment', 'Done']
+const REFUND_CANCELLATION_SECTIONS = [['No-refund policy', 'All program enrollment and registration payments are final and non-refundable, except for a verified duplicate payment caused by a technical or payment-processing issue.'], ['Duplicate payments', 'Only the duplicate or excess transaction may be refunded after ARINSA AI MINDS verifies the participant, program, amount, transaction IDs, payment records and any requested supporting evidence. The original payment remains non-refundable.'], ['Program cancellation', 'A participant may request cancellation of an existing registration, including when they wish to move to another program. Cancellation does not entitle the participant to a refund.'], ['Changing programs', 'A payment from one program is not automatically transferred, credited or adjusted toward another program. A new registration, separate payment and, where required, a different email address may be needed.'], ['Access to digital materials', 'Receiving or not receiving access to learning materials, assessments, projects, datasets or other resources does not change the no-refund policy.'], ['Suspension or termination', 'No refund is provided where access is suspended or terminated for misconduct, impersonation, account sharing, unauthorised distribution of materials, NDA violations, fraud, abuse or security violations.'], ['Career outcomes', 'Enrollment does not guarantee employment, salary, placement, interviews, selection or any particular career outcome.'], ['Verified refund process', 'Approved duplicate-payment refunds ordinarily return through the original payment method. Processing time can depend on the payment gateway, bank, card issuer or UPI provider.'], ['Statutory rights and law', 'Nothing in this policy excludes a refund, remedy or consumer right that ARINSA AI MINDS is legally required to provide. The policy is governed by Indian law, subject to applicable consumer protections and mandatory jurisdictional rights.']]
 
 function StepHeader({ current }) {
   return (
@@ -54,11 +56,22 @@ export default function Signup() {
   const [otpCode, setOtpCode] = useState('')
   const [sendingOtp, setSendingOtp] = useState(false)
   const [verifyingOtp, setVerifyingOtp] = useState(false)
+  const [ndaAccepted, setNdaAccepted] = useState(false)
+  const [showNdaModal, setShowNdaModal] = useState(false)
+  const [ndaRead, setNdaRead] = useState(false)
+  const [ndaModalChecked, setNdaModalChecked] = useState(false)
+  const [refundAccepted, setRefundAccepted] = useState(false)
+  const [showRefundModal, setShowRefundModal] = useState(false)
+  const [refundRead, setRefundRead] = useState(false)
+  const [refundModalChecked, setRefundModalChecked] = useState(false)
+  const ndaContentRef = useRef(null)
+  const refundContentRef = useRef(null)
+  const ndaAcceptButtonRef = useRef(null)
 
   const { register: doRegister } = useAuth()
   const { push } = useToast()
   const navigate = useNavigate()
-  const { register, handleSubmit, formState: { errors }, watch } = useForm({ defaultValues: { citizenship_status: 'indian' } })
+  const { register, handleSubmit, setValue, formState: { errors }, watch } = useForm({ defaultValues: { citizenship_status: 'indian', internship_agreement_accepted: false, refund_accepted: false } })
   const emailValue = watch('email')
   const isEmailVerified = !!verifiedEmail && verifiedEmail === emailValue
 
@@ -99,6 +112,46 @@ export default function Signup() {
   useEffect(() => {
     apiClient.get('/public/programs').then((r) => setPrograms(r.data))
   }, [])
+
+  useEffect(() => {
+    if (showNdaModal) ndaAcceptButtonRef.current?.focus()
+  }, [showNdaModal])
+
+  const openNdaModal = () => {
+    setNdaRead(false)
+    setNdaModalChecked(false)
+    setShowNdaModal(true)
+  }
+
+  const handleNdaScroll = () => {
+    const content = ndaContentRef.current
+    if (content && content.scrollTop + content.clientHeight >= content.scrollHeight - 2) setNdaRead(true)
+  }
+
+  const acceptNda = () => {
+    if (!ndaRead || !ndaModalChecked) return
+    setNdaAccepted(true)
+    setValue('internship_agreement_accepted', true, { shouldValidate: true })
+    setShowNdaModal(false)
+  }
+
+  const openRefundModal = () => {
+    setRefundRead(false)
+    setRefundModalChecked(false)
+    setShowRefundModal(true)
+  }
+
+  const handleRefundScroll = () => {
+    const content = refundContentRef.current
+    if (content && content.scrollTop + content.clientHeight >= content.scrollHeight - 2) setRefundRead(true)
+  }
+
+  const acceptRefund = () => {
+    if (!refundRead || !refundModalChecked) return
+    setRefundAccepted(true)
+    setValue('refund_accepted', true, { shouldValidate: true })
+    setShowRefundModal(false)
+  }
 
   const handlePlanContinue = () => {
     if (!selectedProgram) {
@@ -274,7 +327,7 @@ export default function Signup() {
                 hint="PDF, JPG, JPEG, or PNG"
               />
             </div>
-            <div className="signup-agreements"><label><input type="checkbox" {...register('terms_accepted', { required: true })} /> I agree to the <Link to="/terms" target="_blank">Terms and Conditions</Link>.</label><label><input type="checkbox" {...register('privacy_accepted', { required: true })} /> I agree to the <Link to="/privacy" target="_blank">Privacy Policy</Link>.</label><label><input type="checkbox" {...register('refund_accepted', { required: true })} /> I agree to the <Link to="/refund-cancellation-policy" target="_blank">Refund and Cancellation Policy</Link>.</label><label><input type="checkbox" {...register('internship_agreement_accepted', { required: true })} /> I agree to the Internship Agreement and will complete the <Link to="/nda" target="_blank">NDA</Link>.</label>{(errors.terms_accepted || errors.privacy_accepted || errors.refund_accepted || errors.internship_agreement_accepted) && <p>Please accept all agreements to continue.</p>}</div>
+            <div className="signup-agreements"><label><input type="checkbox" {...register('terms_accepted', { required: true })} /> I agree to the <Link to="/terms" target="_blank">Terms and Conditions</Link>.</label><label><input type="checkbox" {...register('privacy_accepted', { required: true })} /> I agree to the <Link to="/privacy" target="_blank">Privacy Policy</Link>.</label><label><input type="checkbox" {...register('refund_accepted', { required: 'Please read and accept the Refund and Cancellation Policy to continue.' })} checked={refundAccepted} disabled readOnly /> I agree to read the <a href="#refund-policy" onClick={(event) => { event.preventDefault(); openRefundModal() }}>Refund and Cancellation Policy</a>.</label><label><input type="checkbox" {...register('internship_agreement_accepted', { required: 'Please review and accept the NDA to continue.' })} checked={ndaAccepted} disabled readOnly /> I agree to the Internship Agreement and will complete the <a className="nda-read-link" href="#nda" onClick={(event) => { event.preventDefault(); openNdaModal() }}>click here to read the full NDA</a>.</label>{errors.internship_agreement_accepted ? <p>{errors.internship_agreement_accepted.message}</p> : errors.refund_accepted ? <p>{errors.refund_accepted.message}</p> : (errors.terms_accepted || errors.privacy_accepted) && <p>Please accept all agreements to continue.</p>}</div>
             <Button type="submit" className="w-full" disabled={!isEmailVerified}>Continue to NDA</Button>
             {!isEmailVerified && <p className="text-center text-xs text-amber-600">Please verify your email above before continuing.</p>}
             <button type="button" onClick={() => setStep(0)} className="w-full text-center text-xs text-slate-400 hover:text-slate-600">Back to plan selection</button>
@@ -326,6 +379,24 @@ export default function Signup() {
         )}
       </Card>
       </div>
+      {showNdaModal && (
+        <div className="nda-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowNdaModal(false) }}>
+          <section className="nda-modal" role="dialog" aria-modal="true" aria-labelledby="nda-modal-title">
+            <div className="nda-modal-header"><h2 id="nda-modal-title">Non-Disclosure Agreement</h2><button ref={ndaAcceptButtonRef} type="button" className="nda-modal-close" onClick={() => setShowNdaModal(false)} aria-label="Close NDA">×</button></div>
+            <div className="nda-modal-content" ref={ndaContentRef} onScroll={handleNdaScroll}>{NDA_TEXT}</div>
+            <div className="nda-modal-actions"><label><input type="checkbox" checked={ndaModalChecked} disabled={!ndaRead} onChange={(event) => setNdaModalChecked(event.target.checked)} /> I have read and agree to the NDA.</label><button type="button" onClick={acceptNda} disabled={!ndaRead || !ndaModalChecked}>I Agree &amp; Continue</button></div>
+          </section>
+        </div>
+      )}
+      {showRefundModal && (
+        <div className="nda-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowRefundModal(false) }}>
+          <section className="nda-modal" role="dialog" aria-modal="true" aria-labelledby="refund-modal-title">
+            <div className="nda-modal-header"><h2 id="refund-modal-title">Refund and Cancellation Policy</h2><button type="button" className="nda-modal-close" onClick={() => setShowRefundModal(false)} aria-label="Close Refund and Cancellation Policy">×</button></div>
+            <div className="nda-modal-content" ref={refundContentRef} onScroll={handleRefundScroll}>{REFUND_CANCELLATION_SECTIONS.map(([heading, text], index) => <div className="refund-modal-section" key={heading}><strong>{index + 1}. {heading}</strong><p>{text}</p></div>)}</div>
+            <div className="nda-modal-actions"><label><input type="checkbox" checked={refundModalChecked} disabled={!refundRead} onChange={(event) => setRefundModalChecked(event.target.checked)} /> I have read and agree to the Refund and Cancellation Policy.</label><button type="button" onClick={acceptRefund} disabled={!refundRead || !refundModalChecked}>I Agree &amp; Continue</button></div>
+          </section>
+        </div>
+      )}
     </main>
   )
 }
