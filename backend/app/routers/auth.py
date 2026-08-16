@@ -7,8 +7,10 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
-from app.models.auth import Role, User
+from app.models.auth import EmailOtp, Role, User
+from app.models.nda import NdaAcceptance
 from app.models.people import Student
+from app.models.program import Payment, ProgramEnrollment
 from app.schemas.auth import (
     AccessTokenResponse,
     EmailOtpSendRequest,
@@ -19,6 +21,7 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import find_valid_refresh_token, issue_refresh_token, revoke_refresh_token
 from app.services.otp_service import is_email_verified, request_email_otp, verify_email_otp
+from app.services.storage import delete as delete_stored_file
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -49,10 +52,41 @@ def _set_refresh_cookie(request: Request, response: Response, token: str) -> Non
     )
 
 
+def _delete_unpaid_signup(db: Session, user: User) -> bool:
+    """Remove every persisted trace of an abandoned signup.
+
+    Returns False for a paid account, which must never be removed automatically.
+    """
+    student = db.query(Student).filter(Student.user_id == user.id).first()
+    if student is None:
+        return False
+    payments = db.query(Payment).filter(Payment.student_id == student.id).all()
+    if any(payment.status == "paid" for payment in payments):
+        return False
+
+    document_paths = [student.national_id_document_front_path, student.national_id_document_back_path]
+    enrollment_ids = [enrollment.id for enrollment in db.query(ProgramEnrollment).filter(ProgramEnrollment.student_id == student.id).all()]
+    if enrollment_ids:
+        db.query(NdaAcceptance).filter(NdaAcceptance.enrollment_id.in_(enrollment_ids)).delete(synchronize_session=False)
+    db.query(Payment).filter(Payment.student_id == student.id).delete(synchronize_session=False)
+    db.query(ProgramEnrollment).filter(ProgramEnrollment.student_id == student.id).delete(synchronize_session=False)
+    db.query(EmailOtp).filter(EmailOtp.email == user.email, EmailOtp.purpose == "signup").delete(synchronize_session=False)
+    db.delete(user)
+    db.commit()
+
+    for document_path in document_paths:
+        if document_path:
+            try:
+                delete_stored_file(document_path)
+            except Exception:
+                pass
+    return True
+
+
 @router.post("/otp/send", status_code=status.HTTP_204_NO_CONTENT)
 def send_signup_otp(payload: EmailOtpSendRequest, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == payload.email).first()
-    if existing:
+    if existing and not _delete_unpaid_signup(db, existing):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
     request_email_otp(db, payload.email, purpose="signup")
     return None
@@ -99,6 +133,24 @@ def register_student(payload: StudentRegisterRequest, response: Response, reques
     _set_refresh_cookie(request, response, refresh_token)
 
     return AccessTokenResponse(access_token=access_token, role="student", user_id=user.id)
+
+
+@router.post("/signup/cancel", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_unpaid_signup(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Erase a newly verified signup when its payment is abandoned.
+
+    This endpoint is deliberately limited to accounts with no successful payment,
+    so a paid student can never accidentally remove their account from checkout.
+    """
+    if not _delete_unpaid_signup(db, user):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A paid account cannot be cancelled")
+    response.delete_cookie(_cookie_name_for(request), path=REFRESH_COOKIE_PATH)
+    return None
 
 
 @router.post("/login", response_model=AccessTokenResponse)

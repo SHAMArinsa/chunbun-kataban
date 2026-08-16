@@ -15,6 +15,8 @@ class PublicProgramOut(BaseModel):
     offer_price_usd: float | None = None
     offer_start_date: date | None = None
     offer_end_date: date | None = None
+    gst_percent: float
+    platform_fee_percent: float
     features: dict
 
     class Config:
