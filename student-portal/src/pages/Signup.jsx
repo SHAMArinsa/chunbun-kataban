@@ -52,7 +52,7 @@ export default function Signup() {
   const [idDocumentBack, setIdDocumentBack] = useState(null)
   const [idDocumentError, setIdDocumentError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [paidReceipt, setPaidReceipt] = useState(null)
+  const [paidReceipt] = useState(null)
 
   const [verifiedEmail, setVerifiedEmail] = useState(null)
   const [otpSent, setOtpSent] = useState(false)
@@ -117,12 +117,6 @@ export default function Signup() {
   useEffect(() => {
     if (showNdaModal) ndaAcceptButtonRef.current?.focus()
   }, [showNdaModal])
-
-  useEffect(() => {
-    if (step !== 3) return undefined
-    const redirectTimer = window.setTimeout(() => navigate('/dashboard'), 3500)
-    return () => window.clearTimeout(redirectTimer)
-  }, [step, navigate])
 
   const openNdaModal = () => {
     setNdaRead(false)
@@ -219,9 +213,8 @@ export default function Signup() {
     }
   }
 
-  const handlePaymentSuccess = (paidPayment) => {
-    setPaidReceipt(paidPayment)
-    setStep(3)
+  const handlePaymentSuccess = () => {
+    navigate('/dashboard', { replace: true })
   }
 
   const handlePaymentCancel = async () => {
