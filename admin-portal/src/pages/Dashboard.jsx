@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { Users, IndianRupee, ClipboardCheck, Award } from 'lucide-react'
+import { Users, IndianRupee, ClipboardCheck } from 'lucide-react'
 import apiClient from '../api/client'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
@@ -47,11 +47,10 @@ export default function Dashboard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard icon={Users} label="Total Students" value={summary?.total_students ?? 0} />
         <StatCard icon={IndianRupee} label="Revenue (INR)" value={`₹${summary?.revenue_inr?.toLocaleString() ?? 0}`} />
         <StatCard icon={ClipboardCheck} label="Pending Reviews" value={summary?.pending_reviews ?? 0} />
-        <StatCard icon={Award} label="Certificates Issued" value={summary?.certificates_issued ?? 0} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

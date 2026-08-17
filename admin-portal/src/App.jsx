@@ -22,7 +22,6 @@ import ProjectManage from './pages/ProjectManage'
 import AssignProject from './pages/AssignProject'
 import Evaluations from './pages/Evaluations'
 import SubmissionReview from './pages/SubmissionReview'
-import Certificates from './pages/Certificates'
 import Reports from './pages/Reports'
 import Announcements from './pages/Announcements'
 import Support from './pages/Support'
@@ -73,7 +72,6 @@ function App() {
                 <Route path="/evaluations" element={<Evaluations />} />
                 <Route path="/platinum-evaluations" element={<Evaluations platinumOnly />} />
                 <Route path="/evaluations/review/:kind/:submissionId" element={<SubmissionReview />} />
-                <Route path="/certificates" element={<Certificates />} />
                 <Route path="/announcements" element={<Announcements />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/support/tickets/:ticketId" element={<SupportConversation />} />
