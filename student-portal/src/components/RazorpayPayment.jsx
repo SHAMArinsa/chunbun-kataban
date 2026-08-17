@@ -5,6 +5,10 @@ import Spinner from './ui/Spinner'
 
 const CHECKOUT_SRC = 'https://checkout.razorpay.com/v1/checkout.js'
 
+function isAlreadyPaidError(err) {
+  return err.response?.status === 409 && /already paid/i.test(err.response?.data?.detail || '')
+}
+
 function loadRazorpayScript() {
   return new Promise((resolve, reject) => {
     if (window.Razorpay) {
@@ -56,6 +60,14 @@ export default function RazorpayPayment({ paymentId, studentName, studentEmail, 
             paymentCompleted = true
             onSuccess(payment)
           } catch (err) {
+            // Razorpay can deliver its webhook just before this browser verifies the
+            // same payment. In that case the server has already activated enrollment,
+            // so treat its idempotency response as a successful checkout.
+            if (isAlreadyPaidError(err)) {
+              paymentCompleted = true
+              onSuccess({ id: paymentId, status: 'paid' })
+              return
+            }
             setError(err.response?.data?.detail || 'Payment verification failed')
             onError?.(err)
           }
