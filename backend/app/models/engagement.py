@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 CERTIFICATE_TYPES = (
+    "welcome",
     "internship_completion",
     "project_completion",
     "performance_evaluation",
@@ -31,7 +32,7 @@ class Certificate(Base):
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     certificate_number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     issued_date: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
-    issued_by: Mapped[int] = mapped_column(ForeignKey("admins.id"), nullable=False)
+    issued_by: Mapped[int | None] = mapped_column(ForeignKey("admins.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

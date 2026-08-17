@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.people import Student
 from app.models.program import InternshipProgram, Payment, ProgramEnrollment
+from app.services.certificate_service import ensure_welcome_certificate
 
 
 def generate_invoice_number() -> str:
@@ -80,5 +81,7 @@ def activate_payment(
     if enrollment and enrollment.status == "pending_payment":
         enrollment.status = "active"
         db.add(enrollment)
+    if enrollment:
+        ensure_welcome_certificate(db, enrollment)
 
     return payment
