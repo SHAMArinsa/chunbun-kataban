@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.engagement import Certificate
 from app.models.people import Student
-from app.models.program import InternshipProgram, ProgramEnrollment
+from app.models.program import InternshipProgram, Payment, ProgramEnrollment
 from app.services.storage import save
 
 CERTIFICATE_TITLES = {
@@ -43,6 +43,23 @@ def _fit_text(c: canvas.Canvas, text: str, max_width: float, preferred_size: int
 
 def _display_date(value: date) -> str:
     return value.strftime("%d %b %Y")
+
+
+def get_welcome_certificate_issue_date(db: Session, enrollment: ProgramEnrollment) -> date:
+    """Return the certificate issue date from persisted enrollment/payment data only."""
+    payment = (
+        db.query(Payment)
+        .filter(Payment.enrollment_id == enrollment.id, Payment.status == "paid")
+        .order_by(Payment.paid_at.desc(), Payment.id.desc())
+        .first()
+    )
+    if payment is not None and payment.paid_at is not None:
+        return payment.paid_at.date()
+    if enrollment.start_date is not None:
+        return enrollment.start_date
+    if enrollment.enrolled_at is not None:
+        return enrollment.enrolled_at.date()
+    raise ValueError("The enrollment does not contain a date for the Welcome Certificate")
 
 
 def render_welcome_certificate_pdf(
@@ -124,7 +141,8 @@ def ensure_welcome_certificate(db: Session, enrollment: ProgramEnrollment) -> Ce
         return None
 
     certificate_number = generate_certificate_number("welcome")
-    pdf_bytes = render_welcome_certificate_pdf(student, program, enrollment, certificate_number, date.today())
+    issued_date = get_welcome_certificate_issue_date(db, enrollment)
+    pdf_bytes = render_welcome_certificate_pdf(student, program, enrollment, certificate_number, issued_date)
     certificate = Certificate(
         student_id=student.id,
         enrollment_id=enrollment.id,
@@ -132,6 +150,7 @@ def ensure_welcome_certificate(db: Session, enrollment: ProgramEnrollment) -> Ce
         program_id=program.id,
         file_path=save(pdf_bytes, "certificates", f"{certificate_number}.pdf"),
         certificate_number=certificate_number,
+        issued_date=issued_date,
         issued_by=None,
     )
     db.add(certificate)

@@ -1,5 +1,3 @@
-from datetime import date
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,7 +8,7 @@ from app.models.program import InternshipProgram, ProgramEnrollment
 from app.models.engagement import Certificate
 from app.schemas.certificate import CertificateGenerateRequest, CertificateOut
 from app.services.activity_log_service import log_activity
-from app.services.certificate_service import ensure_welcome_certificate, generate_certificate_number, render_certificate_pdf, render_welcome_certificate_pdf
+from app.services.certificate_service import ensure_welcome_certificate, generate_certificate_number, get_welcome_certificate_issue_date, render_certificate_pdf, render_welcome_certificate_pdf
 from app.services.storage import delete as delete_file, download_response, save
 
 router = APIRouter(prefix="/api/certificates", tags=["certificates"])
@@ -25,10 +23,11 @@ def generate_certificate(payload: CertificateGenerateRequest, db: Session = Depe
     program = db.get(InternshipProgram, enrollment.program_id)
 
     cert_number = generate_certificate_number(payload.certificate_type)
+    issued_date = get_welcome_certificate_issue_date(db, enrollment)
     pdf_bytes = (
-        render_welcome_certificate_pdf(student, program, enrollment, cert_number, date.today())
+        render_welcome_certificate_pdf(student, program, enrollment, cert_number, issued_date)
         if payload.certificate_type == "welcome"
-        else render_certificate_pdf(student.full_name, program.name, payload.certificate_type, cert_number, date.today())
+        else render_certificate_pdf(student.full_name, program.name, payload.certificate_type, cert_number, issued_date)
     )
     relative_path = save(pdf_bytes, "certificates", f"{cert_number}.pdf")
 
@@ -39,6 +38,7 @@ def generate_certificate(payload: CertificateGenerateRequest, db: Session = Depe
         program_id=program.id,
         file_path=relative_path,
         certificate_number=cert_number,
+        issued_date=issued_date,
         issued_by=admin.id,
     )
     db.add(certificate)
@@ -86,6 +86,10 @@ def download_certificate(certificate_id: int, db: Session = Depends(get_db), rol
         if student is None or enrollment is None or program is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate source data is unavailable")
 
+        # Reconcile older certificates too: the displayed issue date is always
+        # recalculated from the payment/enrollment record, never from template
+        # artwork or a fixed application date.
+        certificate.issued_date = get_welcome_certificate_issue_date(db, enrollment)
         pdf_bytes = render_welcome_certificate_pdf(
             student, program, enrollment, certificate.certificate_number, certificate.issued_date
         )

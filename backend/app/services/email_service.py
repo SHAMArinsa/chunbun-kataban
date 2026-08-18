@@ -43,7 +43,13 @@ def send_email(to: str, subject: str, body: str, attachment: tuple[str, bytes, s
 def build_payment_invoice_pdf(*, student_name: str, program_name: str, payment) -> tuple[str, bytes]:
     """Build the single invoice PDF used for both email and admin downloads."""
     invoice_number = payment.invoice_number or f"{payment.id:016d}"
-    paid_at = payment.paid_at.strftime("%d %b %Y, %H:%M UTC") if payment.paid_at else "Payment verified"
+    # Both invoice dates are sourced from the persisted payment record.  A paid
+    # payment normally has `paid_at`; `created_at` is a safe database fallback
+    # for legacy records that predate that field being populated.
+    payment_timestamp = payment.paid_at or payment.created_at
+    if payment_timestamp is None:
+        raise ValueError("A payment date is required to generate an invoice")
+    paid_at = payment_timestamp.strftime("%d %b %Y, %H:%M UTC")
     currency = payment.currency
     invoice = BytesIO()
     pdf = canvas.Canvas(invoice, pagesize=A4)
