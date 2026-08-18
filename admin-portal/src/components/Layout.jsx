@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { to: '/students', label: 'Students', icon: Users },
   { to: '/programs', label: 'Internship Plans', icon: GraduationCap, superAdminOnly: true },
   { to: '/payments', label: 'Payments', icon: IndianRupee, superAdminOnly: true },
+  { to: '/certificates', label: 'Certificates & Invoices', icon: ClipboardCheck },
   { to: '/materials', label: 'Learning Materials', icon: BookOpen },
   { to: '/live-classes', label: 'Live Classes', icon: Video },
   { to: '/quizzes', label: 'Quizzes', icon: ListChecks },

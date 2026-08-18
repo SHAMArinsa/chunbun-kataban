@@ -28,6 +28,7 @@ import Support from './pages/Support'
 import SupportConversation from './pages/SupportConversation'
 import Proctoring from './pages/Proctoring'
 import Settings from './pages/Settings'
+import Certificates from './pages/Certificates'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,9 +56,10 @@ function App() {
                 <Route element={<SuperAdminGate />}>
                   <Route path="/programs" element={<Programs />} />
                   <Route path="/payments" element={<Payments />} />
-                  <Route path="/payments/:paymentId" element={<PaymentDetail />} />
+                <Route path="/payments/:paymentId" element={<PaymentDetail />} />
                 </Route>
                 <Route path="/materials" element={<Materials />} />
+                <Route path="/certificates" element={<Certificates />} />
                 <Route path="/live-classes" element={<LiveClasses />} />
                 <Route path="/quizzes" element={<Quizzes />} />
                 <Route path="/platinum-quizzes" element={<Quizzes platinumOnly />} />
