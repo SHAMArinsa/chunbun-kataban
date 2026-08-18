@@ -41,14 +41,14 @@ PROGRAM_DEFS = [
     dict(
         code="professional",
         name="Professional Internship",
-        description="4-week internship with MCQ + 3 coding tests and a full industry project.",
+        description="4-week internship with MCQ + 1 coding tests and a full industry project.",
         duration_weeks=4,
         price_inr=4999,
         price_usd=120,
         features={
             "highlights": [
                 "1 MCQ Assessment",
-                "3 Coding Tests (5 questions each, 4 correct required, 3 attempts)",
+                "1 Coding Tests (5 questions each, 4 correct required, 3 attempts)",
                 "Weeks 2-4 Industry Project (requirements, DB design, backend, frontend, APIs, testing, docs, demo)",
             ]
         },
@@ -58,8 +58,6 @@ PROGRAM_DEFS = [
         milestones=[
             (1, None, "MCQ Assessment", "assessment"),
             (1, None, "Coding Test 1", "coding_test"),
-            (1, None, "Coding Test 2", "coding_test"),
-            (1, None, "Coding Test 3", "coding_test"),
             (2, None, "Industry Project - Requirements & DB Design", "project"),
             (3, None, "Industry Project - Backend & Frontend", "project"),
             (4, None, "Industry Project - Testing, Docs & Demo", "project"),
