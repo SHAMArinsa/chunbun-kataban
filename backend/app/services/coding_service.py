@@ -27,6 +27,25 @@ def check_submission_eligibility(db: Session, coding_assignment: CodingAssignmen
     if total >= coding_assignment.max_attempts:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Maximum attempts ({coding_assignment.max_attempts}) reached for this coding assignment")
 
+    # A submitted attempt is deliberately locked until an administrator grants a
+    # retake.  This mirrors the project workflow and is enforced here (rather
+    # than only in the UI) so a student cannot bypass it by calling the API.
+    if total > 0:
+        latest = (
+            db.query(AssignmentSubmission)
+            .filter(
+                AssignmentSubmission.coding_assignment_id == coding_assignment.id,
+                AssignmentSubmission.student_id == student_id,
+            )
+            .order_by(AssignmentSubmission.id.desc())
+            .first()
+        )
+        if latest.admin_marked_status != "retake":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You've already submitted this coding assignment. Wait for it to be graded, or for the admin to enable a retake.",
+            )
+
     return total + 1
 
 
