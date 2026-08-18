@@ -116,11 +116,22 @@ export default function PdfCanvasViewer({ url, fileName, className = '' }) {
         style={fullscreenActive ? { height: 'calc(100dvh - 8rem)', pointerEvents: 'none' } : { maxHeight: '70vh', pointerEvents: 'none' }}
       />
       {!state.loading && !state.error && (
-        <p className="mt-1 text-center text-[11px] text-slate-400">
-          {fullscreenActive
-            ? 'Use only ↑ / ↓ / ← / → to navigate. Press Escape to exit fullscreen.'
-            : 'Use ↑ / ↓ / Page Up / Page Down / Home / End to scroll. Mouse interaction is disabled on protected content.'}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg border border-indigo-300 bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-950/30">
+          {fullscreenActive ? (
+            <>
+              <span className="text-indigo-200">Navigate with:</span>
+              <kbd className="rounded border border-indigo-300/70 bg-indigo-700 px-1.5 py-0.5 text-xs text-white">↑</kbd>
+              <kbd className="rounded border border-indigo-300/70 bg-indigo-700 px-1.5 py-0.5 text-xs text-white">↓</kbd>
+              <kbd className="rounded border border-indigo-300/70 bg-indigo-700 px-1.5 py-0.5 text-xs text-white">←</kbd>
+              <kbd className="rounded border border-indigo-300/70 bg-indigo-700 px-1.5 py-0.5 text-xs text-white">→</kbd>
+              <span className="text-indigo-200">· Press</span>
+              <kbd className="rounded border border-lime-300 bg-lime-400 px-1.5 py-0.5 text-xs font-extrabold text-slate-950">Esc</kbd>
+              <span className="text-indigo-100">to exit fullscreen</span>
+            </>
+          ) : (
+            <span>Use ↑ / ↓ / Page Up / Page Down / Home / End to scroll. Mouse interaction is disabled on protected content.</span>
+          )}
+        </div>
       )}
     </div>
   )
