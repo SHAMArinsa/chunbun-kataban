@@ -17,6 +17,8 @@ const ENROLLMENT_STATUS_COLOR = {
 
 export default function Students() {
   const [search, setSearch] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [editingStudent, setEditingStudent] = useState(null) // { id, national_id_type, national_id_number, national_id_document_front_name, national_id_document_back_name }
   const frontFileInputRef = useRef(null)
   const backFileInputRef = useRef(null)
@@ -24,8 +26,8 @@ export default function Students() {
   const queryClient = useQueryClient()
 
   const { data: students, isLoading } = useQuery({
-    queryKey: ['students', search],
-    queryFn: () => apiClient.get('/students', { params: { search: search || undefined, limit: 100 } }).then((r) => r.data),
+    queryKey: ['students', search, startDate, endDate],
+    queryFn: () => apiClient.get('/students', { params: { search: search || undefined, start_date: startDate || undefined, end_date: endDate || undefined, limit: 100 } }).then((r) => r.data),
   })
 
   const invalidateAndClose = () => {
@@ -75,6 +77,23 @@ export default function Students() {
       window.URL.revokeObjectURL(url)
     } catch {
       push('Download failed', 'error')
+    }
+  }
+
+  const downloadExport = async () => {
+    try {
+      const res = await apiClient.get('/students/export.xlsx', {
+        params: { search: search || undefined, start_date: startDate || undefined, end_date: endDate || undefined },
+        responseType: 'blob',
+      })
+      const url = window.URL.createObjectURL(res.data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'students-export.xlsx'
+      link.click()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      push(err.response?.data?.detail || 'Could not export students', 'error')
     }
   }
 
@@ -154,8 +173,11 @@ export default function Students() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-slate-900">Students</h1>
       </div>
-      <div className="max-w-xs">
-        <Input placeholder="Search by name…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-full max-w-xs"><Input placeholder="Search by name…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <div className="w-full max-w-[190px]"><Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
+        <div className="w-full max-w-[190px]"><Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
+        <Button variant="secondary" onClick={downloadExport} disabled={isLoading}><Download size={15} /> Download XLSX</Button>
       </div>
       <Card>{isLoading ? <Spinner /> : <Table columns={columns} rows={students} emptyMessage="No students found." />}</Card>
 

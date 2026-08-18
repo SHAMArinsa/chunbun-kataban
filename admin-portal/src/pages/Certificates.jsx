@@ -73,7 +73,7 @@ export default function Certificates() {
       <Modal open={showUpload} onClose={() => setShowUpload(false)} title="Upload Certificate or Invoice" footer={<Button onClick={() => uploadMutation.mutate(form)} disabled={!canUpload || uploadMutation.isPending}>Upload for student</Button>}>
         <div className="space-y-4">
           <Select label="Student" value={form.student_id} onChange={(e) => setForm((current) => ({ ...current, student_id: e.target.value }))}><option value="">Select student...</option>{students?.map((student) => <option key={student.id} value={student.id}>{student.full_name} ({student.email})</option>)}</Select>
-          <Select label="Document type" value={form.document_type} onChange={(e) => setForm((current) => ({ ...current, document_type: e.target.value }))}><option value="invoice">Invoice</option><option value="welcome_certificate">Welcome Certificate</option><option value="certificate">Certificate</option></Select>
+          <Select label="Document type" value={form.document_type} onChange={(e) => setForm((current) => ({ ...current, document_type: e.target.value }))}><option value="invoice">Invoice</option><option value="welcome_certificate">Welcome Certificate</option></Select>
           <Input label="Document title" value={form.title} onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))} placeholder="e.g. Basic Internship Welcome Certificate" />
           <label className="block text-sm font-medium text-slate-700">PDF file<input className="mt-1 block w-full text-sm" type="file" accept="application/pdf,.pdf" onChange={(e) => setForm((current) => ({ ...current, file: e.target.files?.[0] ?? null }))} /></label>
         </div>
