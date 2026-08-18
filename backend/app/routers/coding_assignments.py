@@ -48,7 +48,7 @@ from app.services.assignment_visibility import visible_ids_for_student
 from app.services.coding_service import check_submission_eligibility, start_attempt, visible_problems_for_student
 from app.services.coding_sheet_service import extract_text_from_upload, parse_coding_problems, parse_zip_of_problems
 from app.services.notification_service import notify_students, student_ids_for_assignment_scope
-from app.services.storage import download_response, save
+from app.services.storage import delete as delete_file, download_response, save
 from app.utils.file_validation import read_and_validate_upload
 
 router = APIRouter(prefix="/api/coding-assignments", tags=["coding-assignments"])
@@ -559,10 +559,13 @@ def delete_problem_sheet(sheet_id: int, db: Session = Depends(get_db), admin: Ad
         )
 
     title = sheet.title
+    source_file_path = sheet.source_file_path
     db.query(CodingSheetAssignment).filter(CodingSheetAssignment.sheet_id == sheet_id).delete(synchronize_session=False)
     db.delete(sheet)
     log_activity(db, admin.user_id, "admin", "delete_coding_sheet", "coding_problem_sheets", sheet_id, title)
     db.commit()
+    if source_file_path:
+        delete_file(source_file_path)
     return None
 
 
@@ -644,11 +647,15 @@ async def upload_student_resource(coding_id: int, student_id: int, file: UploadF
     relative_path = save(content, "coding_student_resources", file.filename)
     resource = db.query(CodingStudentResource).filter(CodingStudentResource.coding_assignment_id == coding_id, CodingStudentResource.student_id == student_id).first()
     if resource:
+        previous_path = resource.file_path
         resource.file_path, resource.file_name, resource.file_size_bytes, resource.uploaded_by = relative_path, file.filename, len(content), admin.id
     else:
+        previous_path = None
         resource = CodingStudentResource(coding_assignment_id=coding_id, student_id=student_id, file_path=relative_path, file_name=file.filename, file_size_bytes=len(content), uploaded_by=admin.id)
         db.add(resource)
     db.commit()
+    if previous_path:
+        delete_file(previous_path)
     return {"file_name": resource.file_name}
 
 

@@ -11,7 +11,7 @@ from app.models.engagement import Certificate
 from app.schemas.certificate import CertificateGenerateRequest, CertificateOut
 from app.services.activity_log_service import log_activity
 from app.services.certificate_service import ensure_welcome_certificate, generate_certificate_number, render_certificate_pdf
-from app.services.storage import download_response, save
+from app.services.storage import delete as delete_file, download_response, save
 
 router = APIRouter(prefix="/api/certificates", tags=["certificates"])
 
@@ -80,7 +80,9 @@ def revoke_certificate(certificate_id: int, db: Session = Depends(get_db), admin
     certificate = db.get(Certificate, certificate_id)
     if certificate is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate not found")
+    file_path = certificate.file_path
     db.delete(certificate)
     log_activity(db, admin.user_id, "admin", "revoke_certificate", "certificates", certificate_id, None)
     db.commit()
+    delete_file(file_path)
     return None

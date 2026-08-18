@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     def validate_production_settings(self):
         if self.STORAGE_PROVIDER not in {"local", "vercel_blob"}:
             raise ValueError("STORAGE_PROVIDER must be 'local' or 'vercel_blob'")
+        if self.STORAGE_PROVIDER == "vercel_blob" and not self.BLOB_READ_WRITE_TOKEN:
+            raise ValueError("BLOB_READ_WRITE_TOKEN is required when STORAGE_PROVIDER=vercel_blob")
         if self.is_production:
             missing = []
             if not self.DATABASE_URL:
