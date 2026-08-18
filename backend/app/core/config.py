@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import AliasChoices, Field, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = Field("", validation_alias=AliasChoices("RAZORPAY_LIVE_KEY_ID", "RAZORPAY_KEY_ID"))
     RAZORPAY_KEY_SECRET: str = Field("", validation_alias=AliasChoices("RAZORPAY_LIVE_KEY_SECRET", "RAZORPAY_KEY_SECRET"))
     RAZORPAY_WEBHOOK_SECRET: str = ""
+
+    @field_validator("STORAGE_PROVIDER", mode="before")
+    @classmethod
+    def normalize_storage_provider(cls, value: str) -> str:
+        """Allow conventional Render/env spellings while retaining two explicit providers."""
+        normalized = str(value or "local").strip().lower().replace("-", "_").replace(" ", "_")
+        return {"vercelblob": "vercel_blob", "blob": "vercel_blob"}.get(normalized, normalized)
 
     @property
     def is_production(self) -> bool:
