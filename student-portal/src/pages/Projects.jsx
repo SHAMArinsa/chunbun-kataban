@@ -97,7 +97,7 @@ export default function Projects() {
                     onClick={() => navigate(`/projects/${p.id}/attempt`)}
                   >
                     <UploadCloud size={15} />
-                    {isClosed ? 'Completed' : maxedOut ? 'Max attempts reached' : awaitingGrading ? 'Awaiting grading' : inProgress ? 'Resume' : sub ? 'Resubmit Project File' : 'Submit Project File'}
+                    {isClosed ? 'Completed' : maxedOut ? 'Max attempts reached' : awaitingGrading ? 'Awaiting grading' : inProgress ? 'Resume' : retakeGranted ? 'Retake & Submit' : 'Submit Project File'}
                   </Button>
                 </div>
               </Card>

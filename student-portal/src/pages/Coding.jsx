@@ -40,7 +40,8 @@ export default function Coding() {
             const isClosed = subs.some((s) => s.admin_marked_status === 'closed')
             const retakeGranted = latest?.admin_marked_status === 'retake'
             const inProgress = latest?.status === 'in_progress'
-            const maxedOut = subs.length >= a.max_attempts && !inProgress
+            const awaitingGrading = latest && !inProgress && !retakeGranted
+            const maxedOut = subs.length >= a.max_attempts && !retakeGranted && !inProgress
             return (
               <Card key={a.id} className="flex flex-col gap-2 p-5">
                 <div className="flex items-center justify-between">
@@ -59,10 +60,10 @@ export default function Coding() {
                 <Button
                   variant="secondary"
                   className="mt-2"
-                  disabled={isClosed || maxedOut || noProblemsYet}
+                  disabled={isClosed || awaitingGrading || maxedOut || noProblemsYet}
                   onClick={() => navigate(`/coding/${a.id}/attempt`)}
                 >
-                  {isClosed ? 'Completed' : maxedOut ? 'Max attempts reached' : noProblemsYet ? 'No problems assigned yet' : inProgress ? 'Resume' : 'View & Submit'}
+                  {isClosed ? 'Completed' : maxedOut ? 'Max attempts reached' : awaitingGrading ? 'Awaiting grading' : noProblemsYet ? 'No problems assigned yet' : inProgress ? 'Resume' : retakeGranted ? 'Retake & Submit' : 'View & Submit'}
                 </Button>
               </Card>
             )
