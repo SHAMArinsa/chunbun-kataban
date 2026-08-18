@@ -13,7 +13,7 @@ from app.utils.file_validation import read_and_validate_upload
 
 router = APIRouter(prefix="/api/student-documents", tags=["student-documents"])
 
-DOCUMENT_TYPES = {"invoice", "welcome_certificate", "certificate"}
+DOCUMENT_TYPES = {"invoice", "welcome_certificate"}
 
 
 def _out(document: StudentDocument, student: Student | None = None) -> StudentDocumentOut:
@@ -39,7 +39,7 @@ async def upload_student_document(
     admin: Admin = Depends(get_current_admin),
 ):
     if document_type not in DOCUMENT_TYPES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document type must be invoice, welcome_certificate, or certificate")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document type must be invoice or welcome_certificate")
     if not title.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document title is required")
     student = db.get(Student, student_id)

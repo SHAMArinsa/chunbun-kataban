@@ -1,6 +1,11 @@
 import mimetypes
+from datetime import date
+from io import BytesIO
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -16,6 +21,39 @@ from app.services.storage import delete as delete_file, download_response, save
 from app.utils.file_validation import read_and_validate_upload
 
 router = APIRouter(prefix="/api/students", tags=["students"])
+
+
+def _student_query(
+    db: Session,
+    search: str | None = None,
+    program_id: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+):
+    """Build the admin student list query, including the optional enrollment-date range."""
+    query = db.query(Student).options(joinedload(Student.user))
+    if search:
+        query = query.join(User, User.id == Student.user_id).filter(
+            or_(Student.full_name.ilike(f"%{search}%"), User.email.ilike(f"%{search}%"))
+        )
+
+    enrollment_filter = db.query(ProgramEnrollment.student_id)
+    has_enrollment_filter = False
+    if program_id:
+        enrollment_filter = enrollment_filter.filter(
+            ProgramEnrollment.program_id == program_id,
+            ProgramEnrollment.status.in_(ACTIVE_ENROLLMENT_STATUSES),
+        )
+        has_enrollment_filter = True
+    if start_date:
+        enrollment_filter = enrollment_filter.filter(ProgramEnrollment.start_date >= start_date)
+        has_enrollment_filter = True
+    if end_date:
+        enrollment_filter = enrollment_filter.filter(ProgramEnrollment.expected_end_date <= end_date)
+        has_enrollment_filter = True
+    if has_enrollment_filter:
+        query = query.filter(Student.id.in_(enrollment_filter))
+    return query.order_by(Student.id)
 
 
 def _student_out(db: Session, student: Student) -> StudentOut:
@@ -136,22 +174,67 @@ def list_students(
     limit: int = 50,
     search: str | None = None,
     program_id: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     admin=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Student).options(joinedload(Student.user))
-    if search:
-        query = query.join(User, User.id == Student.user_id).filter(
-            or_(Student.full_name.ilike(f"%{search}%"), User.email.ilike(f"%{search}%"))
-        )
-    if program_id:
-        active_student_ids = db.query(ProgramEnrollment.student_id).filter(
-            ProgramEnrollment.program_id == program_id,
-            ProgramEnrollment.status.in_(ACTIVE_ENROLLMENT_STATUSES),
-        )
-        query = query.filter(Student.id.in_(active_student_ids))
-    students = query.order_by(Student.id).offset(skip).limit(limit).all()
+    students = _student_query(db, search, program_id, start_date, end_date).offset(skip).limit(limit).all()
     return [_student_out(db, s) for s in students]
+
+
+@router.get("/export.xlsx")
+def export_students(
+    search: str | None = None,
+    program_id: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    admin=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Download the same student set currently selected by the admin's filters."""
+    students = _student_query(db, search, program_id, start_date, end_date).all()
+    rows = [_student_out(db, student) for student in students]
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Students"
+    headers = [
+        "Student ID", "Name", "Email", "Phone", "Date of Birth", "Gender", "Address", "City", "State", "Country",
+        "Citizenship", "Institution", "Degree", "Graduation Year", "GitHub", "LinkedIn", "National ID Type",
+        "National ID Number", "Program", "Enrollment Status", "Start Date", "End Date", "Joined Date",
+    ]
+    sheet.append(headers)
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="1E3A8A")
+        cell.alignment = Alignment(horizontal="center")
+    for row in rows:
+        sheet.append([
+            row.id, row.full_name, row.email, row.phone, row.dob, row.gender, row.address, row.city, row.state, row.country,
+            row.citizenship_status, row.institution, row.degree, row.graduation_year, row.github_url, row.linkedin_url,
+            row.national_id_type, row.national_id_number, row.program_name, row.enrollment_status,
+            row.enrollment_start_date, row.enrollment_end_date, row.created_at,
+        ])
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    for index, column in enumerate(sheet.columns, start=1):
+        max_length = max((len(str(cell.value or "")) for cell in column), default=10)
+        sheet.column_dimensions[get_column_letter(index)].width = min(max(max_length + 2, 12), 36)
+    for row in sheet.iter_rows(min_row=2, min_col=5, max_col=5):
+        row[0].number_format = "yyyy-mm-dd"
+    for row in sheet.iter_rows(min_row=2, min_col=21, max_col=23):
+        for cell in row:
+            cell.number_format = "yyyy-mm-dd"
+
+    output = BytesIO()
+    workbook.save(output)
+    filename = "students-export.xlsx"
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{student_id}", response_model=StudentOut)
