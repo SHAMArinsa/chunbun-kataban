@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { to: '/quizzes', label: 'Quizzes', icon: ListChecks },
   { to: '/marksheet', label: 'Marksheet', icon: GraduationCap },
   { to: '/timeline', label: 'Timeline', icon: Map },
-  { to: '/certificates', label: 'Certificates', icon: Award },
+  { to: '/certificates', label: 'Certificates & Invoices', icon: Award },
   { to: '/support', label: 'Support', icon: LifeBuoy },
   { to: '/profile', label: 'Profile', icon: User },
 ]
