@@ -3,7 +3,7 @@ from pathlib import Path
 import mimetypes
 
 from fastapi import HTTPException
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
 from vercel.blob import BlobClient
 from vercel.blob.errors import BlobError, BlobNotFoundError
 
@@ -78,12 +78,12 @@ def download_response(relative_path: str, filename: str, media_type: str | None 
         raise HTTPException(status_code=404, detail="File missing on server") from exc
     except BlobError as exc:
         raise HTTPException(status_code=502, detail="File storage is temporarily unavailable") from exc
-    if result is None or result.status_code != 200 or result.stream is None:
+    if result is None or result.status_code != 200:
         raise HTTPException(status_code=404, detail="File missing on server")
 
     safe_filename = filename.replace('"', "").replace("\r", "").replace("\n", "")
-    return StreamingResponse(
-        result.stream,
-        media_type=media_type or result.blob.content_type or "application/octet-stream",
+    return Response(
+        content=result.content,
+        media_type=media_type or result.content_type or "application/octet-stream",
         headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'},
     )
