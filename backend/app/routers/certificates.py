@@ -76,27 +76,31 @@ def download_certificate(certificate_id: int, db: Session = Depends(get_db), rol
         if student_row is None or certificate.student_id != student_row.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your certificate")
 
-    try:
-        return download_response(certificate.file_path, filename=f"{certificate.certificate_number}.pdf", media_type="application/pdf")
-    except HTTPException as exc:
-        # Welcome certificates created before Blob storage was enabled can retain a database
-        # record whose old local file no longer exists. Rebuild that one document from the live
-        # student/enrollment data and make all later downloads use the restored Blob file.
-        if exc.status_code != status.HTTP_404_NOT_FOUND or certificate.certificate_type != "welcome":
-            raise
+    if certificate.certificate_type == "welcome":
+        # A Welcome Certificate is a live view of the enrollment. Re-render it before download
+        # so template/layout upgrades and corrected student details are immediately reflected,
+        # even when an older PDF has already been stored in Blob.
+        student = db.get(Student, certificate.student_id)
+        enrollment = db.get(ProgramEnrollment, certificate.enrollment_id)
+        program = db.get(InternshipProgram, certificate.program_id)
+        if student is None or enrollment is None or program is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate source data is unavailable")
 
-    student = db.get(Student, certificate.student_id)
-    enrollment = db.get(ProgramEnrollment, certificate.enrollment_id)
-    program = db.get(InternshipProgram, certificate.program_id)
-    if student is None or enrollment is None or program is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate source data is unavailable")
+        pdf_bytes = render_welcome_certificate_pdf(
+            student, program, enrollment, certificate.certificate_number, certificate.issued_date
+        )
+        old_path = certificate.file_path
+        certificate.file_path = save(pdf_bytes, "certificates", f"{certificate.certificate_number}.pdf")
+        db.add(certificate)
+        db.commit()
+        if old_path != certificate.file_path:
+            try:
+                delete_file(old_path)
+            except RuntimeError:
+                # The old file may be from the pre-Blob local filesystem. The new Blob PDF is
+                # already committed and must remain downloadable even if that legacy cleanup fails.
+                pass
 
-    pdf_bytes = render_welcome_certificate_pdf(
-        student, program, enrollment, certificate.certificate_number, certificate.issued_date
-    )
-    certificate.file_path = save(pdf_bytes, "certificates", f"{certificate.certificate_number}.pdf")
-    db.add(certificate)
-    db.commit()
     return download_response(certificate.file_path, filename=f"{certificate.certificate_number}.pdf", media_type="application/pdf")
 
 
