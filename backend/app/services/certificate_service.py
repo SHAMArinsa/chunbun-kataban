@@ -41,8 +41,18 @@ def _fit_text(c: canvas.Canvas, text: str, max_width: float, preferred_size: int
     return size
 
 
-def render_welcome_certificate_pdf(student_name: str, program_name: str, certificate_number: str, issued_date: date) -> bytes:
-    """Place the student's details over the approved Welcome Certificate artwork."""
+def _display_date(value: date) -> str:
+    return value.strftime("%d %b %Y")
+
+
+def render_welcome_certificate_pdf(
+    student: Student,
+    program: InternshipProgram,
+    enrollment: ProgramEnrollment,
+    certificate_number: str,
+    issued_date: date,
+) -> bytes:
+    """Place enrollment-specific values into the approved Welcome Certificate artwork."""
     if not WELCOME_TEMPLATE_PATH.exists():
         raise RuntimeError("Welcome certificate template is missing")
 
@@ -53,31 +63,38 @@ def render_welcome_certificate_pdf(student_name: str, program_name: str, certifi
 
     overlay = BytesIO()
     c = canvas.Canvas(overlay, pagesize=(width, height))
-    # The approved blank artwork reserves these two fields: student name and
-    # registered program. No other template content is changed per student.
-    # Cover the source document's remaining placeholder fragments inside the
-    # name panel while preserving its gold underline.
-    c.setFillColor(HexColor("#FFFFFF"))
-    c.rect(width * 0.22, height * 0.500, width * 0.56, height * 0.135, stroke=0, fill=1)
-    c.setStrokeColor(HexColor("#C89D44"))
-    c.setLineWidth(0.8)
-    c.line(width * 0.27, height * 0.535, width * 0.73, height * 0.535)
-    c.setFillColor(HexColor("#FFFFFF"))
-    c.rect(width * 0.33, height * 0.620, width * 0.34, height * 0.065, stroke=0, fill=1)
+    enrolled_on = enrollment.enrolled_at.date() if enrollment.enrolled_at else issued_date
+    start_on = enrollment.start_date or enrolled_on
+    student_id = f"ARINSA-SD-{student.id:04d}"
+    duration = f"{program.duration_weeks} {'Week' if program.duration_weeks == 1 else 'Weeks'}"
+
+    # The supplied artwork deliberately leaves these fields empty.  Coordinates are expressed
+    # as proportions so the overlay remains aligned if the template page size changes slightly.
     c.setFillColor(HexColor("#071C56"))
-    c.setFont("Helvetica", 14)
-    c.drawCentredString(width / 2, height * 0.650, "This is to certify that")
-    c.setFillColor(HexColor("#071C56"))
-    _fit_text(c, student_name, width * 0.56, 31)
-    c.drawCentredString(width / 2, height * 0.588, student_name)
+    _fit_text(c, student.full_name, width * 0.52, 30)
+    c.drawCentredString(width / 2, height * 0.595, student.full_name)
 
     c.setFillColor(HexColor("#10285C"))
-    program_label = program_name.upper()
-    size = 18
-    while size > 11 and stringWidth(program_label, "Helvetica-Bold", size) > width * 0.27:
+    program_label = program.name.upper()
+    size = 17
+    while size > 10 and stringWidth(program_label, "Helvetica-Bold", size) > width * 0.43:
         size -= 1
     c.setFont("Helvetica-Bold", size)
-    c.drawCentredString(width / 2, height * 0.455, program_label)
+    c.drawCentredString(width / 2, height * 0.468, program_label)
+
+    c.setFillColor(HexColor("#10285C"))
+    c.setFont("Helvetica-Bold", 10)
+    for x, value in (
+        (0.225, student_id),
+        (0.425, _display_date(enrolled_on)),
+        (0.600, duration),
+        (0.795, _display_date(start_on)),
+    ):
+        c.drawCentredString(width * x, height * 0.250, value)
+
+    c.setFont("Helvetica-Bold", 10)
+    c.drawCentredString(width * 0.665, height * 0.140, _display_date(issued_date))
+
     c.save()
 
     page.merge_page(PdfReader(overlay).pages[0])
@@ -107,7 +124,7 @@ def ensure_welcome_certificate(db: Session, enrollment: ProgramEnrollment) -> Ce
         return None
 
     certificate_number = generate_certificate_number("welcome")
-    pdf_bytes = render_welcome_certificate_pdf(student.full_name, program.name, certificate_number, date.today())
+    pdf_bytes = render_welcome_certificate_pdf(student, program, enrollment, certificate_number, date.today())
     certificate = Certificate(
         student_id=student.id,
         enrollment_id=enrollment.id,
@@ -123,7 +140,7 @@ def ensure_welcome_certificate(db: Session, enrollment: ProgramEnrollment) -> Ce
 
 def render_certificate_pdf(student_name: str, program_name: str, certificate_type: str, certificate_number: str, issued_date: date) -> bytes:
     if certificate_type == "welcome":
-        return render_welcome_certificate_pdf(student_name, program_name, certificate_number, issued_date)
+        raise ValueError("Welcome certificates require student and enrollment details")
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=landscape(letter))
     width, height = landscape(letter)

@@ -10,7 +10,7 @@ from app.models.program import InternshipProgram, ProgramEnrollment
 from app.models.engagement import Certificate
 from app.schemas.certificate import CertificateGenerateRequest, CertificateOut
 from app.services.activity_log_service import log_activity
-from app.services.certificate_service import ensure_welcome_certificate, generate_certificate_number, render_certificate_pdf
+from app.services.certificate_service import ensure_welcome_certificate, generate_certificate_number, render_certificate_pdf, render_welcome_certificate_pdf
 from app.services.storage import delete as delete_file, download_response, save
 
 router = APIRouter(prefix="/api/certificates", tags=["certificates"])
@@ -25,7 +25,11 @@ def generate_certificate(payload: CertificateGenerateRequest, db: Session = Depe
     program = db.get(InternshipProgram, enrollment.program_id)
 
     cert_number = generate_certificate_number(payload.certificate_type)
-    pdf_bytes = render_certificate_pdf(student.full_name, program.name, payload.certificate_type, cert_number, date.today())
+    pdf_bytes = (
+        render_welcome_certificate_pdf(student, program, enrollment, cert_number, date.today())
+        if payload.certificate_type == "welcome"
+        else render_certificate_pdf(student.full_name, program.name, payload.certificate_type, cert_number, date.today())
+    )
     relative_path = save(pdf_bytes, "certificates", f"{cert_number}.pdf")
 
     certificate = Certificate(
