@@ -158,7 +158,7 @@ export default function ProtectedContent({
       {contentVisible && (
         <div
           className={`relative z-30 w-full transition-[filter] ${
-            fullscreenActive ? 'min-h-[100dvh] p-6' : ''
+            fullscreenActive ? 'min-h-[100dvh] p-2 sm:p-3' : ''
           } ${suspended ? 'pointer-events-none select-none blur-xl' : ''}`}
         >
           {children}

@@ -31,6 +31,7 @@ export default function PdfCanvasViewer({ url, fileName, className = '' }) {
   const containerRef = useRef(null)
   const [state, setState] = useState({ loading: true, error: null })
   const [fullscreenActive, setFullscreenActive] = useState(() => !!document.fullscreenElement)
+  const [containerWidth, setContainerWidth] = useState(0)
 
   useEffect(() => {
     const onFullscreenChange = () => setFullscreenActive(!!document.fullscreenElement)
@@ -39,11 +40,23 @@ export default function PdfCanvasViewer({ url, fileName, className = '' }) {
   }, [])
 
   useEffect(() => {
+    const container = containerRef.current
+    if (!container) return undefined
+
+    const updateWidth = () => setContainerWidth(Math.floor(container.clientWidth))
+    updateWidth()
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
     let renderTasks = []
     setState({ loading: true, error: null })
 
     async function render() {
+      if (!containerWidth) return
       try {
         // pdf.js v6's getDocument() requires an explicit `{ url }` (or `{ data }`) object —
         // it does not accept a bare URL string, despite older versions/examples suggesting so.
@@ -52,22 +65,27 @@ export default function PdfCanvasViewer({ url, fileName, className = '' }) {
         if (cancelled || !containerRef.current) return
 
         containerRef.current.innerHTML = ''
-        const containerWidth = containerRef.current.clientWidth || 700
-
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           if (cancelled) return
           const page = await pdf.getPage(pageNum)
           const unscaledViewport = page.getViewport({ scale: 1 })
           const scale = containerWidth / unscaledViewport.width
           const viewport = page.getViewport({ scale })
+          const outputScale = Math.min(window.devicePixelRatio || 1, 2)
 
           const canvas = document.createElement('canvas')
-          canvas.width = viewport.width
-          canvas.height = viewport.height
-          canvas.className = 'mx-auto mb-3 block rounded border border-slate-200 shadow-sm'
+          canvas.width = Math.floor(viewport.width * outputScale)
+          canvas.height = Math.floor(viewport.height * outputScale)
+          canvas.style.width = `${Math.floor(viewport.width)}px`
+          canvas.style.height = `${Math.floor(viewport.height)}px`
+          canvas.className = 'mx-auto mb-3 block max-w-full rounded-sm border border-slate-200 bg-white shadow-md shadow-slate-300/60'
           containerRef.current.appendChild(canvas)
 
-          const task = page.render({ canvasContext: canvas.getContext('2d'), viewport })
+          const task = page.render({
+            canvasContext: canvas.getContext('2d'),
+            viewport,
+            transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
+          })
           renderTasks.push(task)
           await task.promise
         }
@@ -86,7 +104,7 @@ export default function PdfCanvasViewer({ url, fileName, className = '' }) {
       renderTasks.forEach((t) => t.cancel?.())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url])
+  }, [url, containerWidth])
 
   useEffect(() => {
     if (!state.loading && !state.error) containerRef.current?.focus()
@@ -112,8 +130,8 @@ export default function PdfCanvasViewer({ url, fileName, className = '' }) {
         aria-label={fileName}
         tabIndex={0}
         role="document"
-        className={`select-none overflow-y-auto rounded-lg border border-slate-200 bg-slate-100 p-3 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${state.loading || state.error ? 'hidden' : ''}`}
-        style={fullscreenActive ? { height: 'calc(100dvh - 8rem)', pointerEvents: 'none' } : { maxHeight: '70vh', pointerEvents: 'none' }}
+        className={`select-none overflow-y-auto rounded-lg border border-slate-200 bg-[#f5f6f8] p-2 sm:p-3 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${state.loading || state.error ? 'invisible' : ''}`}
+        style={fullscreenActive ? { height: 'calc(100dvh - 5.5rem)', pointerEvents: 'none' } : { maxHeight: '70vh', pointerEvents: 'none' }}
       />
       {!state.loading && !state.error && (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg border border-indigo-300 bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-950/30">

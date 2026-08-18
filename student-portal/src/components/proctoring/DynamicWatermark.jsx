@@ -50,16 +50,16 @@ export default function DynamicWatermark({ studentName, studentEmail, studentId,
   const timestamp = now.toLocaleString()
   const pattern = PATTERNS[patternIndex]
   const lines = [
-    { text: 'ARINSA AI MINDS PVT LTD', weight: 800, size: 11, opacity: 0.14 },
-    { text: 'CONFIDENTIAL', weight: 800, size: 13, opacity: 0.2 },
-    { text: studentName || '', weight: 600, size: 10, opacity: 0.13 },
-    { text: studentEmail || '', weight: 500, size: 10, opacity: 0.13 },
-    { text: `STUDENT ID: ${studentId ?? '—'}`, weight: 500, size: 10, opacity: 0.13 },
+    { text: 'ARINSA AI MINDS PVT LTD', weight: 800, size: 11, opacity: 0.09 },
+    { text: 'CONFIDENTIAL', weight: 800, size: 13, opacity: 0.13 },
+    { text: studentName || '', weight: 600, size: 10, opacity: 0.08 },
+    { text: studentEmail || '', weight: 500, size: 10, opacity: 0.08 },
+    { text: `STUDENT ID: ${studentId ?? '—'}`, weight: 500, size: 10, opacity: 0.08 },
     ...(nationalIdType && nationalIdNumber
-      ? [{ text: `${nationalIdType}: ${nationalIdNumber}`, weight: 500, size: 10, opacity: 0.13 }]
+      ? [{ text: `${nationalIdType}: ${nationalIdNumber}`, weight: 500, size: 10, opacity: 0.08 }]
       : []),
-    ...(sessionId ? [{ text: `SESSION: ${sessionId}`, weight: 700, size: 10, opacity: 0.14 }] : []),
-    { text: timestamp, weight: 400, size: 9, opacity: 0.1 },
+    ...(sessionId ? [{ text: `SESSION: ${sessionId}`, weight: 700, size: 10, opacity: 0.09 }] : []),
+    { text: timestamp, weight: 400, size: 9, opacity: 0.07 },
   ]
 
   return (
