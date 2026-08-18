@@ -3,7 +3,7 @@ import hmac
 import json
 from datetime import date, datetime, time, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -16,8 +16,7 @@ from app.models.program import InternshipProgram, Payment, ProgramEnrollment
 from app.schemas.enrollment import MarkPaidRequest, PaymentAdminOut, PaymentOut, RazorpayOrderOut, RazorpayVerifyRequest
 from app.core.config import settings
 from app.services.activity_log_service import log_activity
-from app.services.email_service import build_payment_invoice_pdf, send_payment_confirmation_email
-from app.services.payment_service import activate_payment, generate_invoice_number
+from app.services.payment_service import activate_payment
 from app.services.razorpay_service import create_order, verify_signature
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
@@ -62,16 +61,6 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
     activate_payment(db, payment, method="razorpay", razorpay_order_id=order_id, razorpay_payment_id=payment_id)
     db.commit()
     db.refresh(payment)
-
-    try:
-        student = db.get(Student, payment.student_id)
-        enrollment = db.get(ProgramEnrollment, payment.enrollment_id)
-        program = db.get(InternshipProgram, enrollment.program_id) if enrollment else None
-        if student and program:
-            send_payment_confirmation_email(to=student.email, student_name=student.full_name, program_name=program.name, payment=payment)
-    except Exception:
-        import logging
-        logging.getLogger(__name__).exception("Could not send payment confirmation email for webhook payment %s", payment.id)
 
     return {"status": "processed"}
 
@@ -140,32 +129,6 @@ def get_payment(payment_id: int, db: Session = Depends(get_db), admin: Admin = D
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     payment, student, user, program = row
     return _to_admin_out(payment, student, user, program)
-
-
-@router.get("/{payment_id}/invoice")
-def download_invoice(payment_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
-    row = _admin_payment_query(db).filter(Payment.id == payment_id).first()
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
-    payment, student, _, program = row
-    if payment.status != "paid":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An invoice is available only after successful payment")
-    if not payment.invoice_number:
-        payment.invoice_number = generate_invoice_number()
-        db.add(payment)
-        db.commit()
-        db.refresh(payment)
-
-    invoice_number, invoice_pdf = build_payment_invoice_pdf(
-        student_name=student.full_name,
-        program_name=program.name,
-        payment=payment,
-    )
-    return Response(
-        content=invoice_pdf,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{invoice_number}.pdf"'},
-    )
 
 
 @router.post("/{payment_id}/mark-paid", response_model=PaymentOut)
@@ -244,18 +207,4 @@ def razorpay_verify(
     )
     db.commit()
     db.refresh(payment)
-    try:
-        enrollment = db.get(ProgramEnrollment, payment.enrollment_id)
-        program = db.get(InternshipProgram, enrollment.program_id) if enrollment else None
-        if program:
-            send_payment_confirmation_email(
-                to=student.email,
-                student_name=student.full_name,
-                program_name=program.name,
-                payment=payment,
-            )
-    except Exception:
-        # Payment remains successful even if SMTP is temporarily unavailable.
-        import logging
-        logging.getLogger(__name__).exception("Could not send payment confirmation email for payment %s", payment.id)
     return payment

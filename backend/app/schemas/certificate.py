@@ -21,3 +21,17 @@ class CertificateGenerateRequest(BaseModel):
     student_id: int
     enrollment_id: int
     certificate_type: str
+
+
+class StudentDocumentOut(BaseModel):
+    id: int
+    student_id: int
+    document_type: str
+    title: str
+    file_name: str
+    uploaded_at: datetime
+    student_name: str | None = None
+    student_email: str | None = None
+
+    class Config:
+        from_attributes = True

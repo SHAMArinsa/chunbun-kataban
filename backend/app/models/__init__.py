@@ -34,6 +34,7 @@ from app.models.project import (  # noqa: F401
 )
 from app.models.engagement import (  # noqa: F401
     Certificate,
+    StudentDocument,
     Notification,
     SupportTicket,
     TicketReply,

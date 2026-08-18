@@ -7,7 +7,7 @@ from app.routers import (
     admins,
     attendance,
     auth,
-    certificates,
+    student_documents,
     coding_assignments,
     enrollments,
     evaluations,
@@ -52,7 +52,7 @@ app.include_router(coding_assignments.router)
 app.include_router(projects.router)
 app.include_router(evaluations.router)
 app.include_router(mock_interviews.router)
-app.include_router(certificates.router)
+app.include_router(student_documents.router)
 app.include_router(notifications.router)
 app.include_router(support.router)
 app.include_router(attendance.router)

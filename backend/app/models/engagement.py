@@ -36,6 +36,25 @@ class Certificate(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class StudentDocument(Base):
+    """A document explicitly uploaded by an admin for one student.
+
+    This intentionally does not generate files or send them by email.  Invoices
+    and certificates are published only after the admin selects the student and
+    uploads the final document.
+    """
+    __tablename__ = "student_documents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
+    document_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    uploaded_by: Mapped[int] = mapped_column(ForeignKey("admins.id"), nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
