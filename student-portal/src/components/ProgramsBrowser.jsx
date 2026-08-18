@@ -24,14 +24,17 @@ export default function ProgramsBrowser() {
   const { data: enrollments } = useQuery({
     queryKey: ['enrollments', 'me'],
     queryFn: () => apiClient.get('/enrollments/me').then((r) => r.data),
+    enabled: user?.role === 'student',
   })
   const { data: payments } = useQuery({
     queryKey: ['payments', 'me'],
     queryFn: () => apiClient.get('/payments/me').then((r) => r.data),
+    enabled: user?.role === 'student',
   })
   const { data: ndaAcceptances } = useQuery({
     queryKey: ['nda', 'me'],
     queryFn: () => apiClient.get('/nda/me').then((r) => r.data),
+    enabled: user?.role === 'student',
   })
 
   const refreshAll = () => {
