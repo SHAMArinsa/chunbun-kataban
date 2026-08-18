@@ -355,7 +355,7 @@ export default function Signup() {
             </div>
             <div className="signup-agreements"><label><input type="checkbox" {...register('terms_accepted', { required: true })} /> I agree to the <Link to="/terms" target="_blank">Terms and Conditions</Link>.</label><label><input type="checkbox" {...register('privacy_accepted', { required: true })} /> I agree to the <Link to="/privacy" target="_blank">Privacy Policy</Link>.</label><label><input type="checkbox" {...register('refund_accepted')} checked={refundAccepted} disabled readOnly /> I agree to the <a href="#refund-policy" onClick={(event) => { event.preventDefault(); openRefundModal() }}>click here to read the Refund and Cancellation Policy</a>.</label><label><input type="checkbox" {...register('internship_agreement_accepted')} checked={ndaAccepted} disabled readOnly /> I agree to the Internship Agreement and will complete the <a className="nda-read-link" href="#nda" onClick={(event) => { event.preventDefault(); openNdaModal() }}>click here to read the full NDA</a>.</label>{(errors.terms_accepted || errors.privacy_accepted) && <p>Please accept all agreements to continue.</p>}</div>
             <Button type="submit" className="w-full" disabled={sendingOtp || verifyingOtp || submitting || otpSent}>
-              {sendingOtp ? 'Sending verification code…' : 'Continue to NDA'}
+              {sendingOtp ? 'Sending verification code…' : 'Continue'}
             </Button>
             {!otpSent && <p className="text-center text-xs text-slate-500">A verification code will be sent after you continue.</p>}
             {otpSent && !isEmailVerified && <p className="text-center text-xs text-amber-600">Verify the code above to continue to payment.</p>}
