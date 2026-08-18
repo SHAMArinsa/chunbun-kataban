@@ -72,7 +72,7 @@ def render_welcome_certificate_pdf(
     # as proportions so the overlay remains aligned if the template page size changes slightly.
     c.setFillColor(HexColor("#071C56"))
     _fit_text(c, student.full_name, width * 0.52, 30)
-    c.drawCentredString(width / 2, height * 0.595, student.full_name)
+    c.drawCentredString(width / 2, height * 0.570, student.full_name)
 
     c.setFillColor(HexColor("#10285C"))
     program_label = program.name.upper()
@@ -80,7 +80,7 @@ def render_welcome_certificate_pdf(
     while size > 10 and stringWidth(program_label, "Helvetica-Bold", size) > width * 0.43:
         size -= 1
     c.setFont("Helvetica-Bold", size)
-    c.drawCentredString(width / 2, height * 0.468, program_label)
+    c.drawCentredString(width / 2, height * 0.445, program_label)
 
     c.setFillColor(HexColor("#10285C"))
     c.setFont("Helvetica-Bold", 10)
