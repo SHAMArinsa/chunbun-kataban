@@ -30,14 +30,6 @@ from app.routers import (
 
 app = FastAPI(title="ARINSA AI MINDS - Internship Management System API", version="0.1.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 app.include_router(auth.router)
 app.include_router(students.router)
 app.include_router(admins.router)
@@ -69,3 +61,14 @@ app.include_router(public.router)
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
+
+
+# Keep CORS outside FastAPI's error middleware so browser clients receive CORS
+# headers even when an unhandled server error occurs.
+app = CORSMiddleware(
+    app=app,
+    allow_origins=settings.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
