@@ -124,7 +124,7 @@ export default function Quizzes({ platinumOnly = false }) {
   if (isLoading) return <Spinner />
 
   const assignedIds = new Set(sheetAssignments?.map((a) => a.student_id))
-  const visibleQuizzes = quizzes?.filter((q) => (platinumOnly ? !!q.domain_id : !q.domain_id))
+  const visibleQuizzes = quizzes?.filter((q) => (platinumOnly ? q.program_id === platinumProgram?.id : q.program_id !== platinumProgram?.id))
 
   return (
     <div className="space-y-6">
@@ -140,7 +140,8 @@ export default function Quizzes({ platinumOnly = false }) {
               <p className="text-sm font-medium text-slate-900">{q.title}</p>
               <Badge color={q.is_active ? 'green' : 'slate'}>{q.is_active ? 'Active' : 'Inactive'}</Badge>
             </div>
-            <p className="text-xs text-slate-500">{q.passing_percent}% pass · {q.max_attempts} attempts · {q.attempts_per_day}/day</p>
+            <p className="text-xs text-slate-500">{q.questions_per_attempt} questions · {q.time_limit_minutes} min · {q.passing_percent}% pass</p>
+            <p className="text-xs text-slate-400">{q.max_attempts} attempts · {q.attempts_per_day}/day</p>
             <Button variant="secondary" className="mt-2" onClick={() => setManagingQuiz(q)}>
               {q.domain_id ? 'Manage Question Sheets' : 'Manage Questions'}
             </Button>

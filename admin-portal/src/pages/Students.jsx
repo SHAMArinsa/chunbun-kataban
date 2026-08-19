@@ -133,7 +133,7 @@ export default function Students() {
   const downloadExport = () => {
     try {
       const exportRows = (students ?? []).map((student) => ({
-        'Student ID': student.id,
+        'Student ID': student.student_number,
         Name: student.full_name,
         Email: student.email,
         Phone: student.phone || '',
@@ -172,7 +172,7 @@ export default function Students() {
   }
 
   const columns = [
-    { key: 'id', header: 'ID' },
+    { key: 'student_number', header: 'ID' },
     { key: 'full_name', header: 'Name' },
     { key: 'phone', header: 'Phone', render: (r) => r.phone || '—' },
     { key: 'citizenship_status', header: 'Citizenship', render: (r) => <Badge color={r.citizenship_status === 'indian' ? 'blue' : 'yellow'}>{r.citizenship_status}</Badge> },

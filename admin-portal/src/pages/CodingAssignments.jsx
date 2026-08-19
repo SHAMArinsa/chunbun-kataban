@@ -42,7 +42,7 @@ export default function CodingAssignments({ platinumOnly = false }) {
 
   if (isLoading) return <Spinner />
 
-  const visibleAssignments = assignments?.filter((a) => (platinumOnly ? !!a.domain_id : !a.domain_id))
+  const visibleAssignments = assignments?.filter((a) => (platinumOnly ? a.program_id === platinumProgram?.id : a.program_id !== platinumProgram?.id))
 
   return (
     <div className="space-y-6">
@@ -77,10 +77,10 @@ export default function CodingAssignments({ platinumOnly = false }) {
               createMutation.mutate({
                 ...form,
                 program_id: platinumOnly ? platinumProgram?.id : Number(form.program_id),
-                domain_id: platinumOnly ? Number(form.domain_id) : undefined,
+                domain_id: platinumOnly && form.domain_id ? Number(form.domain_id) : undefined,
               })
             }
-            disabled={createMutation.isPending || (platinumOnly ? !platinumProgram || !form.domain_id : !form.program_id)}
+            disabled={createMutation.isPending || (platinumOnly ? !platinumProgram : !form.program_id)}
           >
             Create
           </Button>
@@ -92,8 +92,8 @@ export default function CodingAssignments({ platinumOnly = false }) {
           {platinumOnly ? (
             <>
               <p className="text-sm text-slate-600">Program: <span className="font-medium text-slate-900">{platinumProgram?.name ?? '—'}</span></p>
-              <Select label="Domain" value={form.domain_id} onChange={(e) => setForm((f) => ({ ...f, domain_id: e.target.value }))}>
-                <option value="">Select…</option>
+              <Select label="Domain (optional for overall/surprise assessments)" value={form.domain_id} onChange={(e) => setForm((f) => ({ ...f, domain_id: e.target.value }))}>
+                <option value="">Overall / Surprise assessment</option>
                 {platinumProgram?.domains?.map((d) => <option key={d.id} value={d.id}>{d.name.replace('_', ' ')}</option>)}
               </Select>
             </>
