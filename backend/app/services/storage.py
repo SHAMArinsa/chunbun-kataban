@@ -35,15 +35,21 @@ def save(content: bytes, resource_type: str, original_filename: str) -> str:
 
     content_type = mimetypes.guess_type(original_filename)[0] or "application/octet-stream"
     try:
-        _blob_client().put(
-            relative_path,
-            content,
-            access="private",
-            content_type=content_type,
-            add_random_suffix=False,
-        )
+        # BlobClient owns an HTTP transport. Close it after each short-lived operation
+        # so repeated admin uploads do not accumulate open connections on the API server.
+        with _blob_client() as client:
+            client.put(
+                relative_path,
+                content,
+                access="private",
+                content_type=content_type,
+                add_random_suffix=False,
+            )
     except BlobError as exc:
-        raise RuntimeError("Unable to store uploaded file in Vercel Blob") from exc
+        raise HTTPException(
+            status_code=502,
+            detail="File storage is temporarily unavailable. Please try the upload again.",
+        ) from exc
     return relative_path
 
 
@@ -54,7 +60,8 @@ def resolve(relative_path: str) -> Path:
 def delete(relative_path: str) -> None:
     if settings.STORAGE_PROVIDER == "vercel_blob":
         try:
-            _blob_client().delete(relative_path)
+            with _blob_client() as client:
+                client.delete(relative_path)
         except BlobError as exc:
             raise RuntimeError("Unable to delete file from Vercel Blob") from exc
         return
@@ -73,7 +80,8 @@ def download_response(relative_path: str, filename: str, media_type: str | None 
         return FileResponse(path, filename=filename, media_type=media_type)
 
     try:
-        result = _blob_client().get(relative_path, access="private")
+        with _blob_client() as client:
+            result = client.get(relative_path, access="private")
     except BlobNotFoundError as exc:
         raise HTTPException(status_code=404, detail="File missing on server") from exc
     except BlobError as exc:
