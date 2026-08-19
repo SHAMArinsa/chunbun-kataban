@@ -30,8 +30,10 @@ async function errorMessage(error, fallback) {
 }
 
 function dayAfter(dateString) {
+  if (typeof dateString !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return ''
   const [year, month, day] = dateString.split('-').map(Number)
-  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10)
+  const date = new Date(Date.UTC(year, month - 1, day + 1))
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10)
 }
 
 export default function Students() {
@@ -273,7 +275,7 @@ export default function Students() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setEditingStudent(null)}>Cancel</Button>
-            {!editingStudent.national_id_verified && <>
+            {editingStudent && !editingStudent.national_id_verified && <>
               <Button
                 variant="secondary"
                 onClick={() => verifyNationalIdMutation.mutate(editingStudent)}
