@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, Pencil, Upload } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import apiClient from '../api/client'
 import { useToast } from '../context/ToastContext'
 import Card from '../components/ui/Card'
@@ -13,6 +14,19 @@ import Modal from '../components/ui/Modal'
 
 const ENROLLMENT_STATUS_COLOR = {
   active: 'green', completed: 'blue', pending_payment: 'yellow', dropped: 'slate', suspended: 'red',
+}
+
+async function errorMessage(error, fallback) {
+  const responseData = error.response?.data
+  if (responseData instanceof Blob) {
+    try {
+      const body = JSON.parse(await responseData.text())
+      return body.detail || fallback
+    } catch {
+      return fallback
+    }
+  }
+  return responseData?.detail || fallback
 }
 
 export default function Students() {
@@ -75,25 +89,49 @@ export default function Students() {
       a.download = fileName || `id-document-${side}`
       a.click()
       window.URL.revokeObjectURL(url)
-    } catch {
-      push('Download failed', 'error')
+    } catch (err) {
+      push(await errorMessage(err, 'Could not download this ID document'), 'error')
     }
   }
 
-  const downloadExport = async () => {
+  const downloadExport = () => {
     try {
-      const res = await apiClient.get('/students/export.xlsx', {
-        params: { search: search || undefined, start_date: startDate || undefined, end_date: endDate || undefined },
-        responseType: 'blob',
-      })
-      const url = window.URL.createObjectURL(res.data)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'students-export.xlsx'
-      link.click()
-      window.URL.revokeObjectURL(url)
+      const exportRows = (students ?? []).map((student) => ({
+        'Student ID': student.id,
+        Name: student.full_name,
+        Email: student.email,
+        Phone: student.phone || '',
+        'Date of Birth': student.dob || '',
+        Gender: student.gender || '',
+        Address: student.address || '',
+        City: student.city || '',
+        State: student.state || '',
+        Country: student.country || '',
+        Citizenship: student.citizenship_status || '',
+        Institution: student.institution || '',
+        Degree: student.degree || '',
+        'Graduation Year': student.graduation_year || '',
+        GitHub: student.github_url || '',
+        LinkedIn: student.linkedin_url || '',
+        'National ID Type': student.national_id_type || '',
+        'National ID Number': student.national_id_number || '',
+        Program: student.program_name || '',
+        'Enrollment Status': student.enrollment_status || '',
+        'Start Date': student.enrollment_start_date || '',
+        'End Date': student.enrollment_end_date || '',
+        'Joined Date': student.created_at ? new Date(student.created_at).toLocaleDateString() : '',
+      }))
+      const sheet = XLSX.utils.json_to_sheet(exportRows)
+      sheet['!cols'] = [
+        { wch: 12 }, { wch: 24 }, { wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
+        { wch: 14 }, { wch: 24 }, { wch: 20 }, { wch: 16 }, { wch: 28 }, { wch: 28 }, { wch: 18 }, { wch: 22 }, { wch: 28 }, { wch: 18 },
+        { wch: 14 }, { wch: 14 }, { wch: 14 },
+      ]
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Students')
+      XLSX.writeFile(workbook, 'students-export.xlsx', { compression: true })
     } catch (err) {
-      push(err.response?.data?.detail || 'Could not export students', 'error')
+      push('Could not export students', 'error')
     }
   }
 
