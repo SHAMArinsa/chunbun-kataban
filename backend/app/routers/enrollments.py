@@ -128,19 +128,17 @@ def extend_enrollment_end_date(
     db: Session = Depends(get_db),
     admin: Admin = Depends(get_current_admin),
 ):
-    """Extend a student's existing enrollment end date; shortening is not allowed here."""
+    """Set or extend an enrollment end date; shortening is not allowed here."""
     enrollment = db.get(ProgramEnrollment, enrollment_id)
     if enrollment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enrollment not found")
-    if enrollment.expected_end_date is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This enrollment has no current end date")
-    if payload.new_end_date <= enrollment.expected_end_date:
+    previous_end_date = enrollment.expected_end_date
+    if previous_end_date is not None and payload.new_end_date <= previous_end_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The new end date must be later than the current end date.",
         )
 
-    previous_end_date = enrollment.expected_end_date
     enrollment.expected_end_date = payload.new_end_date
     db.add(enrollment)
     log_activity(
@@ -150,7 +148,11 @@ def extend_enrollment_end_date(
         "extend_enrollment_end_date",
         "program_enrollments",
         enrollment.id,
-        f"End date extended from {previous_end_date.isoformat()} to {payload.new_end_date.isoformat()}",
+        (
+            f"End date extended from {previous_end_date.isoformat()} to {payload.new_end_date.isoformat()}"
+            if previous_end_date is not None
+            else f"End date set to {payload.new_end_date.isoformat()}"
+        ),
     )
     db.commit()
     db.refresh(enrollment)
