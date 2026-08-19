@@ -55,7 +55,8 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         configured = [origin.strip().rstrip("/") for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
-        return list(dict.fromkeys(configured or [self.STUDENT_PORTAL_URL.rstrip("/"), self.ADMIN_PORTAL_URL.rstrip("/")]))
+        portal_origins = [self.STUDENT_PORTAL_URL.rstrip("/"), self.ADMIN_PORTAL_URL.rstrip("/")]
+        return list(dict.fromkeys(configured + portal_origins))
 
     @model_validator(mode="after")
     def validate_production_settings(self):
