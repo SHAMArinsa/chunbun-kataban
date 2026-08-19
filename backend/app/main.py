@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.core.config import settings
+from app.core.database import SessionLocal
 from app.routers import (
     admin_ops,
     admins,
@@ -29,6 +31,43 @@ from app.routers import (
 )
 
 app = FastAPI(title="ARINSA AI MINDS - Internship Management System API", version="0.1.0")
+
+_SYNC_ID_SEQUENCES_SQL = """
+DO $$
+DECLARE sequence_record RECORD;
+BEGIN
+    FOR sequence_record IN
+        SELECT
+            pg_get_serial_sequence(format('%I.%I', table_schema, table_name), column_name) AS sequence_name,
+            table_schema,
+            table_name,
+            column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND column_name = 'id'
+    LOOP
+        IF sequence_record.sequence_name IS NOT NULL THEN
+            EXECUTE format(
+                'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I.%I), 1), true)',
+                sequence_record.sequence_name,
+                sequence_record.column_name,
+                sequence_record.table_schema,
+                sequence_record.table_name
+            );
+        END IF;
+    END LOOP;
+END $$;
+"""
+
+
+@app.on_event("startup")
+def synchronize_postgres_id_sequences() -> None:
+    """Repair sequences after a database restore/import before requests can write rows."""
+    db = SessionLocal()
+    try:
+        db.execute(text(_SYNC_ID_SEQUENCES_SQL))
+        db.commit()
+    finally:
+        db.close()
 
 app.include_router(auth.router)
 app.include_router(students.router)

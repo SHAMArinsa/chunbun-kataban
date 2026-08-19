@@ -59,7 +59,7 @@ def _template_values(student: Student, program: InternshipProgram, enrollment: P
     return {
         "student_name": student.full_name,
         "program_name": program.name,
-        "student_id": f"ARINSA-SD-{student.id:04d}",
+        "student_id": f"ARINSA-SD-{student.student_number}",
         "enrollment_date": enrolled_on.strftime("%d %b %Y") if enrolled_on else "",
         "program_duration": duration,
         "start_date": enrollment.start_date.strftime("%d %b %Y") if enrollment.start_date else "",

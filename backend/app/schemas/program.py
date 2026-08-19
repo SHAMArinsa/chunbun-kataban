@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ProgramDomainOut(BaseModel):
@@ -58,15 +58,15 @@ class ProgramOut(BaseModel):
 class ProgramUpdateRequest(BaseModel):
     name: str | None = None
     description: str | None = None
-    duration_weeks: int | None = None
-    price_inr: float | None = None
-    price_usd: float | None = None
-    offer_price_inr: float | None = None
-    offer_price_usd: float | None = None
+    duration_weeks: int | None = Field(default=None, gt=0)
+    price_inr: float | None = Field(default=None, gt=0)
+    price_usd: float | None = Field(default=None, gt=0)
+    offer_price_inr: float | None = Field(default=None, gt=0)
+    offer_price_usd: float | None = Field(default=None, gt=0)
     offer_start_date: date | None = None
     offer_end_date: date | None = None
-    gst_percent: float | None = None
-    platform_fee_percent: float | None = None
+    gst_percent: float | None = Field(default=None, ge=0)
+    platform_fee_percent: float | None = Field(default=None, ge=0)
     features: dict | None = None
     certificate_types: dict | None = None
     default_quiz_pass_percent: float | None = None

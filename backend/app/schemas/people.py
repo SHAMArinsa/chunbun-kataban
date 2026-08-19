@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 
 class StudentOut(BaseModel):
     id: int
+    student_number: str
     user_id: int
     full_name: str
     email: str
