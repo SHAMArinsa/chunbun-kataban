@@ -4,6 +4,10 @@ from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
+PUBLIC_PORTAL_ORIGINS = (
+    "https://intern.arinsaaiminds.com",
+    "https://chunbun-kataban-1vh2.vercel.app",
+)
 
 
 class Settings(BaseSettings):
@@ -56,7 +60,7 @@ class Settings(BaseSettings):
     def allowed_origins(self) -> list[str]:
         configured = [origin.strip().rstrip("/") for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
         portal_origins = [self.STUDENT_PORTAL_URL.rstrip("/"), self.ADMIN_PORTAL_URL.rstrip("/")]
-        return list(dict.fromkeys(configured + portal_origins))
+        return list(dict.fromkeys(configured + portal_origins + list(PUBLIC_PORTAL_ORIGINS)))
 
     @model_validator(mode="after")
     def validate_production_settings(self):
