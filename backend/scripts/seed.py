@@ -93,16 +93,16 @@ PROGRAM_DEFS = [
     dict(
         code="platinum",
         name="Platinum Program",
-        description="24-week (6-month) program: Phase 1 live-taught learning across 6 domains, Phase 2 industry internship with guaranteed employment outcome.",
+        description="24-week Platinum Program: 12 weeks of live-taught technical learning followed by a 12-week industry internship phase.",
         duration_weeks=24,
         price_inr=25000,
         price_usd=500,
         features={
             "highlights": [
-                "Phase 1 (12 weeks): Live classes via Google Meet across 6 domains",
-                "6 MCQ Assessments + 6 Coding Assessments + Mini Projects + Capstone Project",
-                "Phase 2 (12 weeks): Industry internship with specialization track + mock interview",
-                "Guaranteed employment outcome based on final evaluation",
+                "12 weeks of structured technical learning",
+                "One live class every week for Weeks 1–12",
+                "Six MCQ assessments, coding assessments, mini projects, and final projects",
+                "12-week industry internship with specialization track and final evaluation",
             ]
         },
         certificate_types=[
@@ -124,18 +124,18 @@ PROGRAM_DEFS = [
             ("software_engineering", "Software Engineering: Git, GitHub, system design, API development, deployment, performance, clean code"),
         ],
         milestones=[
-            (1, "phase1", "Python Programming - Live Classes", "live_class"),
-            (2, "phase1", "Python Programming - Assessment", "assessment"),
-            (3, "phase1", "Web Development - Live Classes", "live_class"),
-            (4, "phase1", "Web Development - Assessment", "assessment"),
-            (5, "phase1", "Database - Live Classes", "live_class"),
-            (6, "phase1", "Database - Assessment", "assessment"),
-            (7, "phase1", "Artificial Intelligence - Live Classes", "live_class"),
-            (8, "phase1", "Artificial Intelligence - Assessment", "assessment"),
-            (9, "phase1", "Generative AI - Live Classes", "live_class"),
-            (10, "phase1", "Generative AI - Assessment", "assessment"),
-            (11, "phase1", "Software Engineering - Live Classes", "live_class"),
-            (12, "phase1", "Final Capstone Project", "capstone"),
+            (1, "phase1", "Python Programming — Live Class", "live_class", "Platinum Program MCQ Assessment – Python — 25 Questions · 80% Pass · 20 Min · 3 Attempts"),
+            (2, "phase1", "Python Programming — Live Class", "live_class", "Platinum Program Coding Assessment – Python — 1 Problem + Platinum Domain Mini Projects"),
+            (3, "phase1", "Web Development — Live Class", "live_class", "No assessment or activity scheduled."),
+            (4, "phase1", "Web Development — Live Class", "live_class", "Platinum Program MCQ Assessment – Web Dev — 25 Questions · 80% Pass · 20 Min · 3 Attempts + Platinum Program Coding Assessment – Web Development — 1 Problem"),
+            (5, "phase1", "Database — Live Class", "live_class", "Platinum Program MCQ Assessment – Database — 25 Questions · 80% Pass · 20 Min · 3 Attempts"),
+            (6, "phase1", "Database — Live Class", "live_class", "Platinum Program Coding Assessment – Database — 1 Problem + Platinum Final Capstone Project"),
+            (7, "phase1", "Artificial Intelligence — Live Class", "live_class", "No assessment or activity scheduled."),
+            (8, "phase1", "Artificial Intelligence / GenAI — Live Class", "live_class", "Platinum Program MCQ Assessment – AI/GenAI — 25 Questions · 80% Pass · 20 Min · 3 Attempts + Platinum Program Coding Assessment – AI — 1 Problem"),
+            (9, "phase1", "Generative AI — Live Class", "live_class", "No assessment or activity scheduled."),
+            (10, "phase1", "Generative AI — Live Class", "live_class", "Platinum Program Coding Assessment – GenAI — 1 Problem"),
+            (11, "phase1", "AI/GENAI — Live Class", "live_class", "Platinum Program MCQ Assessment – Overall 1 — 100 Questions · 80% Pass · 60 Min · 3 Attempts"),
+            (12, "phase1", "AI/GENAI — Live Class", "live_class", "Platinum Program Coding Assessment – Surprise — 1 Problem + Platinum Program MCQ Assessment – Overall 2 — 100 Questions · 80% Pass · 60 Min · 3 Attempts + Platinum Industry Internship Project"),
             (13, "phase2", "Industry Internship - Specialization Track Begins", "project"),
             (23, "phase2", "Final Mock Interview", "mock_interview"),
             (24, "phase2", "Final Evaluation & Employment Outcome", "project"),
@@ -331,7 +331,8 @@ def seed_programs(db, admin: Admin) -> None:
                 print(f"  created domain: {dname}")
             domain_rows[dname] = domain
 
-        for order_index, (week, phase, mtitle, mtype) in enumerate(pdef.get("milestones", [])):
+        for order_index, milestone in enumerate(pdef.get("milestones", [])):
+            week, phase, mtitle, mtype, *description = milestone
             existing_m = db.query(ProgramMilestone).filter(
                 ProgramMilestone.program_id == program.id,
                 ProgramMilestone.week_number == week,
@@ -343,6 +344,7 @@ def seed_programs(db, admin: Admin) -> None:
                     week_number=week,
                     phase=phase,
                     title=mtitle,
+                    description=description[0] if description else None,
                     milestone_type=mtype,
                     order_index=order_index,
                 ))
@@ -354,10 +356,20 @@ def seed_programs(db, admin: Admin) -> None:
             }
             for dname, domain in domain_rows.items():
                 seed_sample_quiz(db, program, admin, domain, week=1, title_suffix=f" - {dname}", questions_per_attempt=50, category=platinum_categories[dname])
-                # Coding Work is created by an admin only when it is ready.
+                seed_sample_coding(db, program, admin, domain, week=1, title_suffix=f" - {dname}")
+            seed_sample_project(db, program, admin, week=6, project_type="mini", title="Platinum Domain Mini Projects", description="Apply the Phase 1 domain learning in a focused mini project.")
+            seed_sample_project(db, program, admin, week=12, project_type="capstone", title="Platinum Final Capstone Project", description="Build and present an end-to-end capstone solution.")
+            seed_sample_project(db, program, admin, week=13, project_type="industry", title="Platinum Industry Internship Project", description="Complete an industry-style project during the internship phase.")
         else:
             seed_sample_quiz(db, program, admin, None, week=1, title_suffix="", questions_per_attempt=50)
-            # Projects are created by an admin only when they are ready.
+            seed_sample_coding(db, program, admin, None, week=1, title_suffix="")
+            project_definitions = {
+                "basic": (2, "mini", "Basic Internship Mini Project", "Build a small practical application using the skills from the internship."),
+                "professional": (2, "industry", "Professional Industry Project", "Design and deliver an industry-style application through requirements, development, testing, and documentation."),
+                "premium": (2, "end_to_end", "Premium End-to-End Project", "Build an end-to-end product and extend it through live development sprints."),
+            }
+            week, project_type, title, description = project_definitions[pdef["code"]]
+            seed_sample_project(db, program, admin, week=week, project_type=project_type, title=title, description=description)
 
 
 def seed_faqs(db) -> None:

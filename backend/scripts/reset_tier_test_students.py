@@ -5,7 +5,7 @@ respectively. Run with: venv/Scripts/python.exe scripts/reset_tier_test_students
 """
 import re
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -94,6 +94,7 @@ def create_fresh_accounts(db) -> None:
             program_id=program.id,
             status="active",
             start_date=date.today(),
+            expected_end_date=date.today() + timedelta(weeks=program.duration_weeks),
             current_week=1,
         ))
         print(f"created {email} ({program.name})")
