@@ -48,31 +48,32 @@ export default function LiveClasses() {
       </div>
 
       {classes?.length ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-3">
           {classes.map((c) => (
-            <Card key={c.id} className="flex flex-col gap-2 p-5">
-              <div className="flex items-center justify-between">
-                <div className="rounded-lg bg-brand-50 p-2 text-brand-600">
-                  <Video size={18} />
+            <Card key={c.id} className="rounded-2xl border-brand-100 bg-gradient-to-r from-white via-white to-brand-50/50 p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="rounded-xl bg-brand-100 p-3 text-brand-600">
+                    <Video size={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2"><p className="text-xl font-bold text-brand-800">{c.title}</p><Badge color={STATUS_COLOR[c.status]}>{c.status}</Badge></div>
+                    {domainName(c.domain_id) && <p className="mt-1 text-sm font-semibold text-brand-600">{domainName(c.domain_id)}</p>}
+                    <p className="mt-1 text-base text-slate-600">Instructor: {c.instructor_name} · {c.scheduled_date} · {c.start_time}–{c.end_time}</p>
+                  </div>
                 </div>
-                <Badge color={STATUS_COLOR[c.status]}>{c.status}</Badge>
+                <Button className="shrink-0 !px-5 !py-3 !text-base" disabled={c.status === 'cancelled'} onClick={() => joinMutation.mutate(c.id)}>Join Class</Button>
               </div>
-              <p className="text-sm font-medium text-slate-900">{c.title}</p>
-              {domainName(c.domain_id) && <p className="text-xs font-medium text-brand-600">{domainName(c.domain_id)}</p>}
-              <p className="text-xs text-slate-500">Instructor: {c.instructor_name}</p>
-              <p className="text-xs text-slate-500">{c.scheduled_date} · {c.start_time}–{c.end_time}</p>
-              <Button
-                className="mt-2"
-                disabled={c.status === 'cancelled'}
-                onClick={() => joinMutation.mutate(c.id)}
-              >
-                Join Class
-              </Button>
             </Card>
           ))}
         </div>
       ) : (
-        <Card className="p-10 text-center text-sm text-slate-500">No live classes scheduled. Live classes will be scheduled soon.</Card>
+        <Card className="p-10 text-center">
+          <p className="text-base font-semibold text-slate-900">12 live classes are included in the Platinum Program.</p>
+          <p className="mt-2 text-sm text-slate-500">
+            Class schedules and Google Meet links will be shared only to your registered email address.
+          </p>
+        </Card>
       )}
     </div>
   )

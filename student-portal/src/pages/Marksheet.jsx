@@ -4,6 +4,8 @@ import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
 import Badge from '../components/ui/Badge'
 import Table from '../components/ui/Table'
+import { Award, BarChart3, ClipboardCheck, TrendingUp } from 'lucide-react'
+import './AcademicProgress.css'
 
 const TYPE_LABEL = { quiz: 'Quiz', coding_assignment: 'Coding Assignment', project: 'Project', performance: 'Performance', mock_interview: 'Mock Interview' }
 const TYPE_COLOR = { quiz: 'blue', coding_assignment: 'blue', project: 'blue', performance: 'slate', mock_interview: 'slate' }
@@ -55,13 +57,52 @@ export default function Marksheet() {
     { key: 'date', header: 'Date', render: (r) => (r.date ? new Date(r.date).toLocaleString() : '—') },
   ]
 
+  const percentageScores = rows.flatMap((row) => {
+    if (row.type === 'quiz') return row.score === '—' ? [] : [Number.parseFloat(row.score)]
+    const [score, maximum] = row.score.split('/').map(Number)
+    return Number.isFinite(score) && Number.isFinite(maximum) && maximum > 0 ? [(score / maximum) * 100] : []
+  })
+  const averageScore = percentageScores.length
+    ? Math.round(percentageScores.reduce((total, score) => total + score, 0) / percentageScores.length)
+    : null
+  const passedCount = rows.filter((row) => row.remarks === 'Passed').length
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Marksheet</h1>
-        <p className="text-sm text-slate-500">All your scores and admin remarks in one place — quizzes, coding assignments, and projects.</p>
-      </div>
-      <Card><Table columns={columns} rows={rows} emptyMessage="No graded work yet." /></Card>
+    <div className="academic-page">
+      <section className="academic-hero">
+        <div>
+          <p className="academic-kicker">ACADEMIC RECORD</p>
+          <h1>Marksheet</h1>
+          <p>Track every quiz, project, coding assignment, and evaluator remark in one place.</p>
+        </div>
+        <Award aria-hidden="true" />
+      </section>
+
+      <section className="marksheet-summary" aria-label="Marksheet summary">
+        <article>
+          <span><ClipboardCheck size={20} /></span>
+          <div><p>Recorded results</p><strong>{rows.length}</strong></div>
+        </article>
+        <article>
+          <span><TrendingUp size={20} /></span>
+          <div><p>Average score</p><strong>{averageScore == null ? '—' : `${averageScore}%`}</strong></div>
+        </article>
+        <article>
+          <span><BarChart3 size={20} /></span>
+          <div><p>Quizzes passed</p><strong>{passedCount}</strong></div>
+        </article>
+      </section>
+
+      <section className="marksheet-results">
+        <div className="academic-section-heading">
+          <div>
+            <p>YOUR RESULTS</p>
+            <h2>Performance history</h2>
+          </div>
+          <span>{rows.length} {rows.length === 1 ? 'entry' : 'entries'}</span>
+        </div>
+        <Card className="marksheet-table-card"><Table columns={columns} rows={rows} emptyMessage="No graded work yet." /></Card>
+      </section>
     </div>
   )
 }

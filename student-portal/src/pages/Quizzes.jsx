@@ -49,24 +49,28 @@ export default function Quizzes() {
       </div>
 
       {quizzes?.length ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-3">
           {quizzes.map((q) => {
             const used = attemptsFor(q.id)
             const bestPass = used.some((a) => a.passed)
             const exhausted = used.length >= q.max_attempts
             return (
-              <Card key={q.id} className="flex flex-col gap-2 p-5">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-slate-900">{q.title}</p>
+              <Card key={q.id} className="rounded-2xl border-brand-100 bg-gradient-to-r from-white via-white to-brand-50/50 p-6 shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-bold text-brand-800">{q.title}</p>
                   {bestPass && <Badge color="green">Passed</Badge>}
+                    </div>
+                    <p className="text-base text-slate-600">
+                      {q.questions_per_attempt} questions · {q.passing_percent}% to pass · {q.time_limit_minutes} min
+                    </p>
+                    <p className="text-sm font-medium text-slate-500">{used.length}/{q.max_attempts} attempts used ({q.attempts_per_day}/day)</p>
+                  </div>
+                  <Button className="shrink-0 !px-5 !py-3 !text-base" disabled={exhausted || startMutation.isPending} onClick={() => startMutation.mutate(q.id)}>
+                    {exhausted ? 'Max attempts reached' : used.length ? 'Retake Quiz' : 'Start Quiz'}
+                  </Button>
                 </div>
-                <p className="text-xs text-slate-500">
-                  {q.questions_per_attempt} questions · {q.passing_percent}% to pass · {q.time_limit_minutes} min
-                </p>
-                <p className="text-xs text-slate-400">{used.length}/{q.max_attempts} attempts used ({q.attempts_per_day}/day)</p>
-                <Button disabled={exhausted || startMutation.isPending} onClick={() => startMutation.mutate(q.id)}>
-                  {exhausted ? 'Max attempts reached' : used.length ? 'Retake Quiz' : 'Start Quiz'}
-                </Button>
                 {used.length > 0 && (
                   <div className="mt-2 space-y-1 border-t border-slate-100 pt-2">
                     <p className="text-xs font-medium text-slate-500">Attempt history</p>

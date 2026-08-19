@@ -85,33 +85,32 @@ export default function ProgramsBrowser() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="space-y-3">
         {programs?.map((p) => {
           const enrollment = enrollments?.find((e) => e.program_id === p.id)
           const payment = payments?.find((pay) => pay.enrollment_id === enrollment?.id)
           const isPaid = payment?.status === 'paid'
           return (
-            <Card key={p.id} className="flex flex-col p-5">
-              <h3 className="text-base font-semibold text-slate-900">{p.name}</h3>
-              <p className="mt-1 text-xs text-slate-500">{p.duration_weeks} weeks</p>
-              <p className="mt-3 text-2xl font-bold text-brand-700">₹{p.price_inr} <span className="text-sm font-normal text-slate-400">/ ${p.price_usd}</span></p>
-              <ul className="mt-3 flex-1 space-y-1 text-xs text-slate-600">
-                {(p.features?.highlights ?? []).slice(0, 3).map((h, i) => (
-                  <li key={i}>• {h}</li>
-                ))}
-              </ul>
-              <div className="mt-4 space-y-2">
+            <Card key={p.id} className="rounded-2xl border-brand-100 bg-gradient-to-r from-white via-white to-brand-50/50 p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <h3 className="text-xl font-bold text-brand-800">{p.name}</h3>
+                  <p className="mt-1 text-base text-slate-600">{p.duration_weeks} weeks · <span className="font-bold text-brand-700">₹{p.price_inr}</span> <span className="text-slate-400">/ ${p.price_usd}</span></p>
+                  {!!p.features?.highlights?.length && <p className="mt-2 text-base text-slate-600">{p.features.highlights.slice(0, 3).join(' · ')}</p>}
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                 {enrollment && <Badge color={enrollment.status === 'active' ? 'green' : 'yellow'}>{enrollment.status.replace('_', ' ')}</Badge>}
                 {!enrollment && (
-                  <Button className="w-full" disabled={enrollMutation.isPending} onClick={() => beginFlow(p, null)}>
+                  <Button className="!px-5 !py-3 !text-base" disabled={enrollMutation.isPending} onClick={() => beginFlow(p, null)}>
                     Enroll Now
                   </Button>
                 )}
                 {enrollment && !isPaid && (
-                  <Button className="w-full" onClick={() => beginFlow(p, enrollment)}>
+                  <Button className="!px-5 !py-3 !text-base" onClick={() => beginFlow(p, enrollment)}>
                     Complete Payment
                   </Button>
                 )}
+                </div>
               </div>
             </Card>
           )

@@ -18,13 +18,15 @@ function StarRating({ count, className, label }) {
 }
 
 export function ProgramCards() {
-  const { data: programs, isLoading } = useQuery({
+  const { data: programs, isLoading, isError, refetch } = useQuery({
     queryKey: ['public-programs'],
     queryFn: () => apiClient.get('/public/programs', { headers: { 'Cache-Control': 'no-cache' } }).then((response) => response.data),
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
+    retry: 1,
   })
   if (isLoading) return <Spinner />
+  if (isError) return <section className="program-grid"><p className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">Unable to load programme prices. <button className="font-semibold text-blue-700 underline" onClick={() => refetch()}>Try again</button></p></section>
   return <section className="program-grid">{programs?.map((program) => {
     const content = CARD_CONTENT[program.code]
     const offerActive = hasActiveOffer(program)

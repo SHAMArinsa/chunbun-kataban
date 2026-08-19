@@ -29,22 +29,22 @@ export default function Materials() {
       </div>
 
       {materials?.length ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-3">
           {materials.map((m) => (
-            <Card key={m.id} className="flex flex-col gap-3 p-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-brand-50 p-2 text-brand-600">
-                  <FileText size={18} />
+            <Card key={m.id} className="rounded-2xl border-brand-100 bg-gradient-to-r from-white via-white to-brand-50/50 p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="rounded-xl bg-brand-100 p-3 text-brand-600">
+                    <FileText size={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xl font-bold text-brand-800">{m.title}</p>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">{m.file_type}</p>
+                    {m.description && <p className="mt-1 text-base text-slate-600">{m.description}</p>}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{m.title}</p>
-                  <p className="text-xs uppercase text-slate-400">{m.file_type}</p>
-                </div>
+                <Button variant="secondary" className="shrink-0 !px-5 !py-3 !text-base" onClick={() => setPreviewing(m)}><Eye size={18} /> Preview</Button>
               </div>
-              {m.description && <p className="text-xs text-slate-500">{m.description}</p>}
-              <Button variant="secondary" className="mt-auto" onClick={() => setPreviewing(m)}>
-                <Eye size={15} /> Preview
-              </Button>
             </Card>
           ))}
         </div>

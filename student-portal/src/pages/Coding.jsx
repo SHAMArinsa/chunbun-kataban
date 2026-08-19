@@ -32,7 +32,7 @@ export default function Coding() {
       </div>
 
       {assignments?.length ? (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="space-y-3">
           {assignments.map((a) => {
             const subs = submissionsFor(a.id)
             const latest = subs[0]
@@ -43,28 +43,21 @@ export default function Coding() {
             const awaitingGrading = latest && !inProgress && !retakeGranted
             const maxedOut = subs.length >= a.max_attempts && !retakeGranted && !inProgress
             return (
-              <Card key={a.id} className="flex flex-col gap-2 p-5">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-slate-900">{a.title}</p>
+              <Card key={a.id} className="rounded-2xl border-brand-100 bg-gradient-to-r from-white via-white to-brand-50/50 p-6 shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-bold text-brand-800">{a.title}</p>
                   {isClosed ? <Badge color="green">Passed</Badge> : latest && <Badge color={STATUS_COLOR[latest.status]}>{latest.status.replace('_', ' ')}</Badge>}
+                    </div>
+                    <p className="text-base text-slate-600">{a.problems?.length ?? 0}/{a.num_problems} problems · {a.required_correct} correct required · {subs.length}/{a.max_attempts} attempts used</p>
+                    {latest?.admin_feedback && <p className="text-sm text-slate-600">Admin remarks: {latest.admin_feedback}</p>}
+                    {retakeGranted && !isClosed && <p className="text-sm font-semibold text-emerald-600">Your admin has granted you a retake — you can submit again.</p>}
+                  </div>
+                  <Button variant="secondary" className="shrink-0 !px-5 !py-3 !text-base" disabled={isClosed || awaitingGrading || maxedOut || noProblemsYet} onClick={() => navigate(`/coding/${a.id}/attempt`)}>
+                    {isClosed ? 'Completed' : maxedOut ? 'Max attempts reached' : awaitingGrading ? 'Awaiting grading' : noProblemsYet ? 'No problems assigned yet' : inProgress ? 'Resume' : retakeGranted ? 'Retake & Submit' : 'View & Submit'}
+                  </Button>
                 </div>
-                <p className="text-xs text-slate-500">
-                  {a.problems?.length ?? 0}/{a.num_problems} problems · {a.required_correct} correct required · {subs.length}/{a.max_attempts} attempts used
-                </p>
-                {latest?.admin_feedback && (
-                  <p className="text-xs text-slate-500">Admin remarks: {latest.admin_feedback}</p>
-                )}
-                {retakeGranted && !isClosed && (
-                  <p className="text-xs text-emerald-600">Your admin has granted you a retake — you can submit again.</p>
-                )}
-                <Button
-                  variant="secondary"
-                  className="mt-2"
-                  disabled={isClosed || awaitingGrading || maxedOut || noProblemsYet}
-                  onClick={() => navigate(`/coding/${a.id}/attempt`)}
-                >
-                  {isClosed ? 'Completed' : maxedOut ? 'Max attempts reached' : awaitingGrading ? 'Awaiting grading' : noProblemsYet ? 'No problems assigned yet' : inProgress ? 'Resume' : retakeGranted ? 'Retake & Submit' : 'View & Submit'}
-                </Button>
               </Card>
             )
           })}

@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '../api/client'
 import {
@@ -14,6 +15,7 @@ import {
   LifeBuoy,
   User,
   LogOut,
+  ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import NotificationBell from './NotificationBell'
@@ -37,6 +39,7 @@ const NAV_ITEMS = [
 
 export default function Layout() {
   const { user, logout } = useAuth()
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const { data: enrollments } = useQuery({
     queryKey: ['enrollments', 'me'],
     queryFn: () => apiClient.get('/enrollments/me').then((r) => r.data),
@@ -71,23 +74,47 @@ export default function Layout() {
               {label}
             </NavLink>
           ))}
-        </nav>
-        <div className="border-t border-slate-200 p-3">
           <button
+            type="button"
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            className="portal-nav-link flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors"
           >
             <LogOut size={17} />
             Logout
           </button>
-        </div>
+        </nav>
       </aside>
-      <div className="flex-1">
-        <header className="portal-topbar flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-6 py-3">
+      <div className="portal-content flex-1">
+        <header className="portal-topbar relative flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-6 py-3">
           <NotificationBell />
-          <div className="text-right">
-            <p className="text-sm font-medium text-slate-900">{user?.full_name}</p>
-            <p className="text-xs text-slate-500">{user?.email}</p>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAccountMenuOpen((open) => !open)}
+              className="flex items-center gap-2 rounded-lg px-2 py-1 text-right hover:bg-slate-50"
+              aria-expanded={accountMenuOpen}
+              aria-haspopup="menu"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700"><User size={18} /></span>
+              <span>
+                <span className="block text-sm font-medium text-slate-900">{user?.full_name}</span>
+                <span className="block text-xs text-slate-500">{user?.email}</span>
+              </span>
+              <ChevronDown size={15} className="text-slate-400" />
+            </button>
+            {accountMenuOpen && (
+              <div role="menu" className="absolute right-0 z-50 mt-2 w-40 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={logout}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  <LogOut size={16} />
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </header>
         <main className="portal-main p-6">
