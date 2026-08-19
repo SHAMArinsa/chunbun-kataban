@@ -29,6 +29,11 @@ async function errorMessage(error, fallback) {
   return responseData?.detail || fallback
 }
 
+function dayAfter(dateString) {
+  const [year, month, day] = dateString.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10)
+}
+
 export default function Students() {
   const [search, setSearch] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -395,7 +400,7 @@ export default function Students() {
             label="New end date"
             type="date"
             value={extendedEndDate}
-            min={extendingEnrollment.enrollment_end_date}
+            min={dayAfter(extendingEnrollment.enrollment_end_date)}
             onChange={(event) => setExtendedEndDate(event.target.value)}
           />
           <p className="text-xs text-slate-500">The new date must be later than the current end date. This action cannot shorten the enrollment.</p>
