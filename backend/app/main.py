@@ -9,6 +9,7 @@ from app.routers import (
     auth,
     student_documents,
     coding_assignments,
+    document_generator,
     enrollments,
     evaluations,
     live_classes,
@@ -49,6 +50,7 @@ app.include_router(materials.router)
 app.include_router(live_classes.router)
 app.include_router(quizzes.router)
 app.include_router(coding_assignments.router)
+app.include_router(document_generator.router)
 app.include_router(projects.router)
 app.include_router(evaluations.router)
 app.include_router(mock_interviews.router)

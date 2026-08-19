@@ -27,6 +27,7 @@ class StudentOut(BaseModel):
     national_id_number: str | None = None
     national_id_document_front_name: str | None = None
     national_id_document_back_name: str | None = None
+    national_id_verified: bool = False
     created_at: datetime
     enrollment_id: int | None = None
     program_id: int | None = None

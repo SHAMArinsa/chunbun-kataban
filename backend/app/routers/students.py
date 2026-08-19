@@ -1,5 +1,4 @@
 import mimetypes
-import mimetypes
 from datetime import date
 from io import BytesIO
 
@@ -95,7 +94,14 @@ def update_my_profile(
     student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
 ):
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if student.national_id_verified and any(
+        changes.get(field) != getattr(student, field)
+        for field in ("national_id_type", "national_id_number")
+        if field in changes
+    ):
+        _ensure_national_id_is_editable(student)
+    for field, value in changes.items():
         setattr(student, field, value)
     db.add(student)
     db.commit()
@@ -112,14 +118,33 @@ def _side_or_404(side: str) -> str:
     return side
 
 
+def _ensure_national_id_is_editable(student: Student) -> None:
+    if student.national_id_verified:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This student's ID has been verified and is locked. It cannot be changed.",
+        )
+
+
 def _set_national_id_document(student: Student, side: str, file: UploadFile, content: bytes) -> None:
+    _ensure_national_id_is_editable(student)
     path_field = f"national_id_document_{side}_path"
     name_field = f"national_id_document_{side}_name"
     existing_path = getattr(student, path_field)
-    if existing_path:
-        delete_file(existing_path)
-    setattr(student, path_field, save(content, "national_id_documents", file.filename))
+    # Save the replacement first.  Some older documents were stored on the
+    # previous server filesystem and no longer exist after switching to Blob;
+    # a missing legacy file must never prevent the admin/student from uploading
+    # a new valid ID document.
+    new_path = save(content, "national_id_documents", file.filename)
+    setattr(student, path_field, new_path)
     setattr(student, name_field, file.filename)
+    if existing_path and existing_path != new_path:
+        try:
+            delete_file(existing_path)
+        except (HTTPException, RuntimeError):
+            # The database now points at the newly saved Blob object. Legacy
+            # cleanup is best-effort only and must not roll back the replacement.
+            pass
 
 
 @router.post("/me/national-id-document/{side}", response_model=StudentOut)
@@ -129,10 +154,14 @@ async def upload_my_national_id_document(
     student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
 ):
-    """Self-service upload of the front or back of the ID document — used right after signup
-    (registration must complete first since this endpoint needs an authenticated session), and
-    any time the student wants to replace either side."""
+    """Complete a missing signup ID upload; replacement is an admin-only action."""
     side = _side_or_404(side)
+    _ensure_national_id_is_editable(student)
+    if getattr(student, f"national_id_document_{side}_path"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This ID document has already been submitted. Contact an administrator if it needs to be changed.",
+        )
     content, _ext = await read_and_validate_upload(file, settings.MAX_UPLOAD_SIZE_MB)
     _set_national_id_document(student, side, file, content)
     db.add(student)
@@ -157,6 +186,31 @@ async def admin_upload_national_id_document(
     _set_national_id_document(student, side, file, content)
     db.add(student)
     log_activity(db, admin.user_id, "admin", f"upload_national_id_document_{side}", "students", student.id, file.filename)
+    db.commit()
+    db.refresh(student)
+    return _student_out(db, student)
+
+
+@router.post("/{student_id}/national-id/verify", response_model=StudentOut)
+def verify_national_id(
+    student_id: int,
+    admin: Admin = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Approve a student's submitted ID and permanently lock its details and files."""
+    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == student_id).first()
+    if student is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+    if student.national_id_verified:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This student's ID is already verified and locked")
+    if not student.national_id_document_front_path or not student.national_id_document_back_path:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Upload both front and back ID documents before verifying.",
+        )
+    student.national_id_verified = True
+    db.add(student)
+    log_activity(db, admin.user_id, "admin", "verify_national_id", "students", student.id, student.full_name)
     db.commit()
     db.refresh(student)
     return _student_out(db, student)
@@ -267,7 +321,14 @@ def admin_update_student(
     student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == student_id).first()
     if student is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if student.national_id_verified and any(
+        changes.get(field) != getattr(student, field)
+        for field in ("national_id_type", "national_id_number")
+        if field in changes
+    ):
+        _ensure_national_id_is_editable(student)
+    for field, value in changes.items():
         setattr(student, field, value)
     db.add(student)
     db.commit()

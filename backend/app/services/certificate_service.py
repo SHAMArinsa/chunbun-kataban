@@ -4,6 +4,7 @@ from io import BytesIO
 from pathlib import Path
 
 from reportlab.lib.colors import HexColor
+from reportlab.lib.pagesizes import landscape, letter
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.units import inch

@@ -8,6 +8,10 @@ class EnrollmentCreateRequest(BaseModel):
     specialization_track_id: int | None = None
 
 
+class EnrollmentEndDateExtensionRequest(BaseModel):
+    new_end_date: date
+
+
 class EnrollmentOut(BaseModel):
     id: int
     student_id: int
