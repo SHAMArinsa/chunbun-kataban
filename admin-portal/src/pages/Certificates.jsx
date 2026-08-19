@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Trash2, Upload } from 'lucide-react'
+import { Download, FilePlus2, Trash2, Upload } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import apiClient from '../api/client'
 import { useToast } from '../context/ToastContext'
 import Button from '../components/ui/Button'
@@ -14,6 +15,7 @@ import Table from '../components/ui/Table'
 const EMPTY_FORM = { student_id: '', document_type: 'invoice', title: '', file: null }
 
 export default function Certificates() {
+  const navigate = useNavigate()
   const [showUpload, setShowUpload] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const { push } = useToast()
@@ -68,7 +70,7 @@ export default function Certificates() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-semibold text-slate-900">Certificates &amp; Invoices</h1><p className="text-sm text-slate-500">Upload a final PDF for one student. It becomes visible only in that student's portal.</p></div><Button onClick={() => setShowUpload(true)}><Upload size={16} /> Upload document</Button></div>
+      <div className="flex items-center justify-between gap-4"><div><h1 className="text-2xl font-semibold text-slate-900">Certificates &amp; Invoices</h1><p className="text-sm text-slate-500">Upload a final PDF for one student. It becomes visible only in that student's portal.</p></div><div className="flex shrink-0 gap-2"><Button variant="secondary" onClick={() => navigate('/certificates/generate')}><FilePlus2 size={16} /> Generate certificate &amp; invoice</Button><Button onClick={() => setShowUpload(true)}><Upload size={16} /> Upload document</Button></div></div>
       <Card><Table columns={columns} rows={documents} emptyMessage="No student documents uploaded yet." /></Card>
       <Modal open={showUpload} onClose={() => setShowUpload(false)} title="Upload Certificate or Invoice" footer={<Button onClick={() => uploadMutation.mutate(form)} disabled={!canUpload || uploadMutation.isPending}>Upload for student</Button>}>
         <div className="space-y-4">

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, Pencil, Upload } from 'lucide-react'
+import { BadgeCheck, CalendarPlus, Download, Pencil, Upload } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import apiClient from '../api/client'
 import { useToast } from '../context/ToastContext'
@@ -33,7 +33,9 @@ export default function Students() {
   const [search, setSearch] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [editingStudent, setEditingStudent] = useState(null) // { id, national_id_type, national_id_number, national_id_document_front_name, national_id_document_back_name }
+  const [editingStudent, setEditingStudent] = useState(null) // includes submitted ID details and verification state
+  const [extendingEnrollment, setExtendingEnrollment] = useState(null)
+  const [extendedEndDate, setExtendedEndDate] = useState('')
   const frontFileInputRef = useRef(null)
   const backFileInputRef = useRef(null)
   const { push } = useToast()
@@ -78,6 +80,33 @@ export default function Students() {
       queryClient.invalidateQueries({ queryKey: ['students'] })
     },
     onError: (err) => push(err.response?.data?.detail || 'Upload failed', 'error'),
+  })
+
+  const verifyNationalIdMutation = useMutation({
+    mutationFn: async ({ studentId, national_id_type, national_id_number }) => {
+      await apiClient.put(`/students/${studentId}`, {
+        national_id_type: national_id_type || null,
+        national_id_number: national_id_number || null,
+      })
+      return apiClient.post(`/students/${studentId}/national-id/verify`)
+    },
+    onSuccess: () => {
+      push('ID document verified and locked.', 'success')
+      setEditingStudent((student) => (student ? { ...student, national_id_verified: true } : student))
+      queryClient.invalidateQueries({ queryKey: ['students'] })
+    },
+    onError: (err) => push(err.response?.data?.detail || 'Could not verify ID document', 'error'),
+  })
+
+  const extendEndDateMutation = useMutation({
+    mutationFn: ({ enrollmentId, newEndDate }) => apiClient.put(`/enrollments/${enrollmentId}/end-date`, { new_end_date: newEndDate }),
+    onSuccess: () => {
+      push('Student end date extended.', 'success')
+      queryClient.invalidateQueries({ queryKey: ['students'] })
+      setExtendingEnrollment(null)
+      setExtendedEndDate('')
+    },
+    onError: (err) => push(err.response?.data?.detail || 'Could not extend the end date', 'error'),
   })
 
   const downloadDocument = async (studentId, side, fileName) => {
@@ -130,7 +159,7 @@ export default function Students() {
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, sheet, 'Students')
       XLSX.writeFile(workbook, 'students-export.xlsx', { compression: true })
-    } catch (err) {
+    } catch {
       push('Could not export students', 'error')
     }
   }
@@ -154,6 +183,7 @@ export default function Students() {
               national_id_number: r.national_id_number || '',
               national_id_document_front_name: r.national_id_document_front_name || null,
               national_id_document_back_name: r.national_id_document_back_name || null,
+              national_id_verified: r.national_id_verified,
             })
           }
         >
@@ -162,6 +192,7 @@ export default function Students() {
               ? <>{r.national_id_type} → {r.national_id_number || '—'}</>
               : <span className="text-slate-400">Not provided</span>}
           </span>
+          {r.national_id_verified && <BadgeCheck size={15} className="shrink-0 text-emerald-600" aria-label="Verified" />}
           <Pencil size={12} className="shrink-0 text-slate-400" />
         </button>
       ),
@@ -194,13 +225,24 @@ export default function Students() {
         if (!r.enrollment_id) return null
         const isSuspended = r.enrollment_status === 'suspended'
         return (
-          <Button
-            variant={isSuspended ? 'secondary' : 'danger'}
-            onClick={() => statusMutation.mutate({ enrollmentId: r.enrollment_id, newStatus: isSuspended ? 'active' : 'suspended' })}
-            disabled={statusMutation.isPending}
-          >
-            {isSuspended ? 'Reactivate' : 'Suspend'}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setExtendingEnrollment(r)
+                setExtendedEndDate('')
+              }}
+            >
+              <CalendarPlus size={15} /> Extend
+            </Button>
+            <Button
+              variant={isSuspended ? 'secondary' : 'danger'}
+              onClick={() => statusMutation.mutate({ enrollmentId: r.enrollment_id, newStatus: isSuspended ? 'active' : 'suspended' })}
+              disabled={statusMutation.isPending}
+            >
+              {isSuspended ? 'Reactivate' : 'Suspend'}
+            </Button>
+          </div>
         )
       },
     },
@@ -226,28 +268,44 @@ export default function Students() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setEditingStudent(null)}>Cancel</Button>
-            <Button
-              onClick={() => nationalIdMutation.mutate({ studentId: editingStudent.id, ...editingStudent })}
-              disabled={nationalIdMutation.isPending}
-            >
-              Save
-            </Button>
+            {!editingStudent.national_id_verified && <>
+              <Button
+                variant="secondary"
+                onClick={() => verifyNationalIdMutation.mutate(editingStudent)}
+                disabled={verifyNationalIdMutation.isPending}
+              >
+                <BadgeCheck size={15} /> Verify & Lock
+              </Button>
+              <Button
+                onClick={() => nationalIdMutation.mutate({ studentId: editingStudent.id, ...editingStudent })}
+                disabled={nationalIdMutation.isPending}
+              >
+                Save
+              </Button>
+            </>}
           </>
         }
       >
         {editingStudent && (
           <div className="space-y-4">
+            {editingStudent.national_id_verified && (
+              <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
+                <BadgeCheck size={17} /> Verified — this ID document is locked and cannot be replaced.
+              </div>
+            )}
             <Input
               label="Document Type"
               value={editingStudent.national_id_type}
               onChange={(e) => setEditingStudent((s) => ({ ...s, national_id_type: e.target.value }))}
               placeholder="e.g. PAN, Aadhar, Passport"
+              disabled={editingStudent.national_id_verified}
             />
             <Input
               label="Document Number"
               value={editingStudent.national_id_number}
               onChange={(e) => setEditingStudent((s) => ({ ...s, national_id_number: e.target.value }))}
               placeholder="e.g. ABCDE1234F"
+              disabled={editingStudent.national_id_verified}
             />
             <div>
               <span className="mb-1 block text-sm font-medium text-slate-700">ID Document (Front Side)</span>
@@ -271,13 +329,13 @@ export default function Students() {
                     <Download size={15} /> {editingStudent.national_id_document_front_name}
                   </Button>
                 )}
-                <Button
+                {!editingStudent.national_id_verified && <Button
                   variant="secondary"
                   onClick={() => frontFileInputRef.current?.click()}
                   disabled={uploadDocumentMutation.isPending}
                 >
                   <Upload size={15} /> {editingStudent.national_id_document_front_name ? 'Replace' : 'Upload'}
-                </Button>
+                </Button>}
               </div>
             </div>
             <div>
@@ -302,17 +360,46 @@ export default function Students() {
                     <Download size={15} /> {editingStudent.national_id_document_back_name}
                   </Button>
                 )}
-                <Button
+                {!editingStudent.national_id_verified && <Button
                   variant="secondary"
                   onClick={() => backFileInputRef.current?.click()}
                   disabled={uploadDocumentMutation.isPending}
                 >
                   <Upload size={15} /> {editingStudent.national_id_document_back_name ? 'Replace' : 'Upload'}
-                </Button>
+                </Button>}
               </div>
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={!!extendingEnrollment}
+        onClose={() => { setExtendingEnrollment(null); setExtendedEndDate('') }}
+        title="Extend Student End Date"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setExtendingEnrollment(null); setExtendedEndDate('') }}>Cancel</Button>
+            <Button
+              onClick={() => extendEndDateMutation.mutate({ enrollmentId: extendingEnrollment.enrollment_id, newEndDate: extendedEndDate })}
+              disabled={!extendedEndDate || extendEndDateMutation.isPending}
+            >
+              Extend date
+            </Button>
+          </>
+        }
+      >
+        {extendingEnrollment && <div className="space-y-4">
+          <p className="text-sm text-slate-600"><span className="font-medium text-slate-900">{extendingEnrollment.full_name}</span> — current end date: <span className="font-medium text-slate-900">{new Date(`${extendingEnrollment.enrollment_end_date}T00:00:00`).toLocaleDateString()}</span></p>
+          <Input
+            label="New end date"
+            type="date"
+            value={extendedEndDate}
+            min={extendingEnrollment.enrollment_end_date}
+            onChange={(event) => setExtendedEndDate(event.target.value)}
+          />
+          <p className="text-xs text-slate-500">The new date must be later than the current end date. This action cannot shorten the enrollment.</p>
+        </div>}
       </Modal>
     </div>
   )

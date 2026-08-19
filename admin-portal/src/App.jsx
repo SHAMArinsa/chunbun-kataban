@@ -29,6 +29,7 @@ import SupportConversation from './pages/SupportConversation'
 import Proctoring from './pages/Proctoring'
 import Settings from './pages/Settings'
 import Certificates from './pages/Certificates'
+import GenerateDocuments from './pages/GenerateDocuments'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +61,7 @@ function App() {
                 </Route>
                 <Route path="/materials" element={<Materials />} />
                 <Route path="/certificates" element={<Certificates />} />
+                <Route path="/certificates/generate" element={<GenerateDocuments />} />
                 <Route path="/live-classes" element={<LiveClasses />} />
                 <Route path="/quizzes" element={<Quizzes />} />
                 <Route path="/platinum-quizzes" element={<Quizzes platinumOnly />} />
