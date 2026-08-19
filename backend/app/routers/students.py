@@ -1,4 +1,5 @@
 import mimetypes
+import mimetypes
 from datetime import date
 from io import BytesIO
 
@@ -21,6 +22,11 @@ from app.services.storage import delete as delete_file, download_response, save
 from app.utils.file_validation import read_and_validate_upload
 
 router = APIRouter(prefix="/api/students", tags=["students"])
+
+
+def _xlsx_date(value) -> str:
+    """Export dates as text so Excel never receives a timezone-aware datetime."""
+    return value.strftime("%Y-%m-%d") if value else ""
 
 
 def _student_query(
@@ -165,7 +171,15 @@ def download_national_id_document(student_id: int, side: str, admin: Admin = Dep
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No document uploaded for this student")
     doc_name = getattr(student, f"national_id_document_{side}_name")
     media_type, _ = mimetypes.guess_type(doc_name or doc_path)
-    return download_response(doc_path, filename=doc_name, media_type=media_type or "application/octet-stream")
+    try:
+        return download_response(doc_path, filename=doc_name or f"id-document-{side}", media_type=media_type or "application/octet-stream")
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="This ID document file is no longer available in storage. Upload it again using Replace.",
+            ) from exc
+        raise
 
 
 @router.get("", response_model=list[StudentOut])
@@ -211,22 +225,18 @@ def export_students(
         cell.alignment = Alignment(horizontal="center")
     for row in rows:
         sheet.append([
-            row.id, row.full_name, row.email, row.phone, row.dob, row.gender, row.address, row.city, row.state, row.country,
+            row.id, row.full_name, row.email, row.phone, _xlsx_date(row.dob), row.gender, row.address, row.city, row.state, row.country,
             row.citizenship_status, row.institution, row.degree, row.graduation_year, row.github_url, row.linkedin_url,
             row.national_id_type, row.national_id_number, row.program_name, row.enrollment_status,
-            row.enrollment_start_date, row.enrollment_end_date, row.created_at,
+            _xlsx_date(row.enrollment_start_date),
+            _xlsx_date(row.enrollment_end_date),
+            _xlsx_date(row.created_at),
         ])
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
     for index, column in enumerate(sheet.columns, start=1):
         max_length = max((len(str(cell.value or "")) for cell in column), default=10)
         sheet.column_dimensions[get_column_letter(index)].width = min(max(max_length + 2, 12), 36)
-    for row in sheet.iter_rows(min_row=2, min_col=5, max_col=5):
-        row[0].number_format = "yyyy-mm-dd"
-    for row in sheet.iter_rows(min_row=2, min_col=21, max_col=23):
-        for cell in row:
-            cell.number_format = "yyyy-mm-dd"
-
     output = BytesIO()
     workbook.save(output)
     filename = "students-export.xlsx"
