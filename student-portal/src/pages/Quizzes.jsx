@@ -81,8 +81,12 @@ export default function Quizzes() {
                           {a.submitted_at && ` · ${new Date(a.submitted_at).toLocaleDateString()}`}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <span className="font-medium text-slate-700">{a.score_percent != null ? `${a.score_percent}%` : '—'}</span>
-                          {a.passed != null && <Badge color={a.passed ? 'green' : 'red'}>{a.passed ? 'Pass' : 'Fail'}</Badge>}
+                          {(a.status === 'auto_submitted' && !a.correct_answers) || a.status === 'in_progress' || a.status === 'expired'
+                            ? <Badge color="red">{a.status === 'auto_submitted' ? 'Terminated · 0%' : 'Not submitted · 0%'}</Badge>
+                            : <>
+                              <span className="font-medium text-slate-700">{a.score_percent != null ? `${a.score_percent}%` : '—'}</span>
+                              {a.passed != null && <Badge color={a.passed ? 'green' : 'red'}>{a.passed ? 'Pass' : 'Fail'}</Badge>}
+                            </>}
                         </span>
                       </div>
                     ))}
