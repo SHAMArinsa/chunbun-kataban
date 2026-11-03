@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.services.enrollment_access import authorize_enrollment
 from app.core.database import get_db
-from app.core.deps import get_current_admin, get_current_student
+from app.core.deps import get_current_admin, get_current_staff, get_current_student
 from app.models.auth import User
 from app.models.people import Admin, Student
 from app.models.program import ProgramEnrollment
@@ -47,6 +48,11 @@ def start_watermark_session(
     """Called the moment a student opens protected content — mints the short code embedded in
     the watermark (SESSION: XXXXXXX) and records who/what/when/where server-side, so a leaked
     screenshot or recording can be traced back via Admin → Proctoring → Search Session."""
+    enrollment = _find_relevant_enrollment(db, student.id, payload.assessment_type, payload.assessment_id)
+    if payload.assessment_type not in (None, "file_preview") or payload.assessment_id:
+        if enrollment is None:
+            raise HTTPException(404, "Assessment enrollment not found")
+        authorize_enrollment(db, student, enrollment.program_id, enrollment.id)
     # Multiple-session conflict: the same student already has another still-open session on this
     # exact assessment (e.g. opened in a second tab/device). Log it as suspicious evidence and
     # soft-invalidate the stale one — this session becomes the one live session going forward.
@@ -109,7 +115,7 @@ def end_watermark_session(session_code: str, db: Session = Depends(get_db), stud
 
 
 @router.get("/session/{session_code}", response_model=WatermarkSessionOut)
-def get_watermark_session(session_code: str, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def get_watermark_session(session_code: str, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     """Admin lookup: paste the SESSION code visible in a leaked screenshot/recording to identify
     the student, the content they were viewing, and when."""
     session = db.query(WatermarkSession).filter(WatermarkSession.session_code == session_code.strip().upper()).first()
@@ -132,6 +138,10 @@ def get_watermark_session(session_code: str, db: Session = Depends(get_db), admi
         )
         .count()
     )
+    if admin.user.role.name == "instructor":
+        out.route = None
+        out.ip_address = None
+        out.resource_id = None
     return out
 
 
@@ -142,6 +152,22 @@ def report_violation(
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student),
 ):
+    if payload.assessment_type not in (None, "file_preview") or payload.assessment_id:
+        enrollment = _find_relevant_enrollment(db, student.id, payload.assessment_type, payload.assessment_id)
+        if enrollment is None:
+            raise HTTPException(404, "Assessment enrollment not found")
+    if payload.session_code:
+        session = db.query(WatermarkSession).filter(WatermarkSession.session_code == payload.session_code).first()
+        if session is None or session.student_id != student.id:
+            raise HTTPException(404, "Session not found")
+    if payload.attempt_id is not None:
+        from app.models.assessment import QuizAttempt, AssignmentSubmission
+        from app.models.project import ProjectSubmission
+        models = {"quiz": (QuizAttempt, "quiz_id"), "coding_assignment": (AssignmentSubmission, "coding_assignment_id"), "project": (ProjectSubmission, "project_id")}
+        model, field = models.get(payload.assessment_type, (None, None))
+        attempt = db.get(model, payload.attempt_id) if model else None
+        if attempt is None or attempt.student_id != student.id or getattr(attempt, field) != payload.assessment_id:
+            raise HTTPException(404, "Attempt not found")
     if payload.violation_type not in ALL_VIOLATION_TYPES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown violation_type")
 
@@ -165,12 +191,17 @@ def report_violation(
     return ViolationReportResponse(**result)
 
 
-def _violation_out(v: ProctoringViolation, db: Session) -> ViolationOut:
+def _violation_out(v: ProctoringViolation, db: Session, academic_only: bool = False) -> ViolationOut:
     out = ViolationOut.model_validate(v)
     student = db.get(Student, v.student_id)
     if student:
         out.student_full_name = student.full_name
         out.student_email = student.email
+    if academic_only:
+        out.admin_notes = None
+        out.route = None
+        out.user_agent = None
+        out.resource_id = None
     return out
 
 
@@ -187,7 +218,7 @@ def list_violations(
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     """Backs the Admin → Proctoring & Violations audit search — by student ID, session/attempt
     ID, assessment, date range, or (via `student_search`) student name/email."""
@@ -220,15 +251,15 @@ def list_violations(
         ]
         query = query.filter(ProctoringViolation.student_id.in_(matching_ids or [-1]))
     rows = query.order_by(ProctoringViolation.id.desc()).limit(500).all()
-    return [_violation_out(v, db) for v in rows]
+    return [_violation_out(v, db, admin.user.role.name == "instructor") for v in rows]
 
 
 @router.get("/{violation_id}", response_model=ViolationOut)
-def get_violation(violation_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def get_violation(violation_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     v = db.get(ProctoringViolation, violation_id)
     if v is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Violation not found")
-    return _violation_out(v, db)
+    return _violation_out(v, db, admin.user.role.name == "instructor")
 
 
 @router.put("/{violation_id}/review", response_model=ViolationOut)
@@ -236,7 +267,7 @@ def review_violation(
     violation_id: int,
     payload: ViolationReviewRequest,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     v = db.get(ProctoringViolation, violation_id)
     if v is None:
@@ -247,24 +278,24 @@ def review_violation(
     if payload.admin_notes is not None:
         v.admin_notes = payload.admin_notes
     db.add(v)
-    log_activity(db, admin.user_id, "admin", "review_proctoring_violation", "proctoring_violations", v.id, payload.admin_notes)
+    log_activity(db, admin.user_id, admin.user.role.name, "review_proctoring_violation", "proctoring_violations", v.id, payload.admin_notes)
     db.commit()
     db.refresh(v)
-    return _violation_out(v, db)
+    return _violation_out(v, db, admin.user.role.name == "instructor")
 
 
 @router.post("/suspend", response_model=dict)
 def manual_suspend(
     payload: ManualSuspendRequest,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     enrollment = db.get(ProgramEnrollment, payload.enrollment_id)
     if enrollment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enrollment not found")
     enrollment.status = "suspended"
     db.add(enrollment)
-    log_activity(db, admin.user_id, "admin", "manual_suspend_enrollment", "program_enrollments", enrollment.id, payload.reason)
+    log_activity(db, admin.user_id, admin.user.role.name, "manual_suspend_enrollment", "program_enrollments", enrollment.id, payload.reason)
     db.commit()
     return {"ok": True}
 
@@ -280,6 +311,6 @@ def reinstate(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enrollment not found")
     enrollment.status = "active"
     db.add(enrollment)
-    log_activity(db, admin.user_id, "admin", "reinstate_enrollment", "program_enrollments", enrollment.id, payload.reason)
+    log_activity(db, admin.user_id, admin.user.role.name, "reinstate_enrollment", "program_enrollments", enrollment.id, payload.reason)
     db.commit()
     return {"ok": True}

@@ -26,7 +26,13 @@ def get_current_user(
     if payload is None:
         raise credentials_exception
     user_id = payload.get("sub")
-    user = db.get(User, int(user_id))
+    try:
+        user_id = int(user_id)
+        if user_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError, OverflowError):
+        raise credentials_exception
+    user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise credentials_exception
     return user
@@ -45,6 +51,9 @@ def require_role(*role_names: str):
 require_admin = require_role("admin")
 require_student = require_role("student")
 require_any_role = require_role("admin", "student")
+require_staff = require_role("admin", "instructor")
+require_instructor_or_admin = require_staff
+require_academic_role = require_role("admin", "instructor", "student")
 
 
 def get_current_student(user: User = Depends(require_student), db: Session = Depends(get_db)) -> Student:
@@ -57,10 +66,12 @@ def get_current_student(user: User = Depends(require_student), db: Session = Dep
 def require_unsuspended_student(
     student: Student = Depends(get_current_student), db: Session = Depends(get_db)
 ) -> Student:
-    """Fail-closed guard for protected assessment/resource endpoints (coding/quiz/project start,
-    protected file downloads). A suspended student must not regain access by refreshing the
-    page, editing frontend state, or calling the API directly — every such endpoint must
-    independently re-check status on every request, not just hide the button in the UI."""
+    """Legacy early guard, not a resource entitlement check.
+
+    Each protected action also checks its actual resource program/enrollment.
+    An unrelated active enrollment must never authorize that action. Profile,
+    history and support routes deliberately use get_current_student instead.
+    """
     enrollments = db.query(ProgramEnrollment).filter(ProgramEnrollment.student_id == student.id).all()
     has_active = any(e.status in ACTIVE_ENROLLMENT_STATUSES for e in enrollments)
     is_suspended = not has_active and any(e.status == "suspended" for e in enrollments)
@@ -83,3 +94,18 @@ def get_current_super_admin(admin: Admin = Depends(get_current_admin)) -> Admin:
     if not admin.is_super_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required")
     return admin
+
+
+def get_current_staff(user: User = Depends(require_staff), db: Session = Depends(get_db)) -> Admin:
+    """The existing admins table is a staff profile, never a permission grant.
+
+    Legacy academic actor FKs use this profile ID. Instructor profiles always have
+    is_super_admin=False; require_admin still checks the authenticated user's role.
+    """
+    profile = db.query(Admin).filter(Admin.user_id == user.id).first()
+    if profile is None:
+        raise HTTPException(status_code=403, detail="Staff profile required")
+    return profile
+
+
+require_super_admin = get_current_super_admin

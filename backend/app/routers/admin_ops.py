@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.services.safe_responses import setting_out, audit_out
 from app.core.database import get_db
 from app.core.deps import get_current_admin
 from app.models.admin_ops import ActivityLog, Setting
@@ -15,7 +16,7 @@ def list_settings(category: str | None = None, db: Session = Depends(get_db), ad
     query = db.query(Setting)
     if category:
         query = query.filter(Setting.category == category)
-    return query.all()
+    return [setting_out(row) for row in query.all()]
 
 
 @settings_router.put("", response_model=SettingOut)
@@ -30,7 +31,7 @@ def upsert_setting(payload: SettingUpsertRequest, db: Session = Depends(get_db),
     db.add(setting)
     db.commit()
     db.refresh(setting)
-    return setting
+    return setting_out(setting)
 
 
 activity_logs_router = APIRouter(prefix="/api/activity-logs", tags=["activity-logs"])
@@ -38,4 +39,4 @@ activity_logs_router = APIRouter(prefix="/api/activity-logs", tags=["activity-lo
 
 @activity_logs_router.get("", response_model=list[ActivityLogOut])
 def list_activity_logs(limit: int = 50, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
-    return db.query(ActivityLog).order_by(ActivityLog.id.desc()).limit(limit).all()
+    return [audit_out(row) for row in db.query(ActivityLog).order_by(ActivityLog.id.desc()).limit(min(max(limit, 1), 500)).all()]

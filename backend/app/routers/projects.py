@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.services.enrollment_access import authorize_enrollment, authorize_submission
 from app.core.database import get_db
-from app.core.deps import get_current_admin, get_current_student, require_any_role, require_unsuspended_student
+from app.core.deps import get_current_staff, get_current_student, require_academic_role, require_unsuspended_student
 from app.models.auth import User
 from app.models.people import Admin, Student
 from app.models.program import Batch, BatchMember, InternshipProgram, ProgramEnrollment
@@ -56,17 +57,17 @@ def _is_project_ready_for_student(db: Session, project: Project, student_id: int
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
-def create_project(payload: ProjectCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def create_project(payload: ProjectCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     project = Project(**payload.model_dump(), created_by=admin.id)
     db.add(project)
-    log_activity(db, admin.user_id, "admin", "create_project", "projects", None, payload.title)
+    log_activity(db, admin.user_id, admin.user.role.name, "create_project", "projects", None, payload.title)
     db.commit()
     db.refresh(project)
     return project
 
 
 @router.post("/{project_id}/assign", status_code=status.HTTP_201_CREATED)
-def assign_project(project_id: int, payload: ProjectAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def assign_project(project_id: int, payload: ProjectAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
@@ -87,7 +88,7 @@ def assign_project(project_id: int, payload: ProjectAssignRequest, db: Session =
 
 
 @router.post("/{project_id}/assign-students", status_code=status.HTTP_201_CREATED)
-def assign_project_to_students(project_id: int, payload: SheetAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def assign_project_to_students(project_id: int, payload: SheetAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
@@ -115,13 +116,13 @@ def assign_project_to_students(project_id: int, payload: SheetAssignRequest, db:
         notification_type="info",
         link_url="/projects",
     )
-    log_activity(db, admin.user_id, "admin", "assign_project_students", "projects", project_id, f"Assigned to {added} student(s)")
+    log_activity(db, admin.user_id, admin.user.role.name, "assign_project_students", "projects", project_id, f"Assigned to {added} student(s)")
     db.commit()
     return {"status": "assigned", "newly_assigned": added, "already_assigned": len(existing)}
 
 
 @router.get("/{project_id}/assigned-students", response_model=list[SheetAssignedStudentOut])
-def list_assigned_students(project_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_assigned_students(project_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     rows = (
         db.query(Student.id, Student.full_name, User.email)
         .join(ProjectAssignment, ProjectAssignment.student_id == Student.id)
@@ -150,7 +151,7 @@ def project_roster(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     """Full enterprise roster for one project: every enrolled student, always visible, with
     derived assignment/evaluation status, attempt counts, and scores — mirrors the coding
@@ -250,7 +251,7 @@ def project_roster(
 
         items.append(ProjectRosterItemOut(
             student_id=student.id, full_name=student.full_name, email=email,
-            plan=plan_code, batch=batch_by_student.get(student.id), enrollment_status=enrollment_status,
+            plan=plan_code, batch=batch_by_student.get(student.id), enrollment_status=("unavailable" if admin.user.role.name == "instructor" and enrollment_status == "pending_payment" else enrollment_status),
             assignment_status=assignment_status, attempts_used=attempts_used, max_attempts=PROJECT_MAX_ATTEMPTS,
             attempts_remaining=attempts_remaining_n, highest_score=highest_score, current_score=current_score,
             evaluation_status=evaluation_status,
@@ -298,8 +299,8 @@ def project_roster(
 
 
 @router.get("", response_model=list[ProjectOut])
-def list_projects(db: Session = Depends(get_db), role_user=Depends(require_any_role)):
-    if role_user.role.name == "admin":
+def list_projects(db: Session = Depends(get_db), role_user=Depends(require_academic_role)):
+    if role_user.role.name in ("admin", "instructor"):
         return [_project_out(p) for p in db.query(Project).filter(Project.is_active.is_(True)).order_by(Project.id.desc()).all()]
 
     student_row = db.query(Student).filter(Student.user_id == role_user.id).first()
@@ -357,6 +358,7 @@ async def submit_project_attempt(
     submission = db.get(ProjectSubmission, submission_id)
     if submission is None or submission.student_id != student.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
+    authorize_submission(db, student, submission, db.get(Project, submission.project_id))
     if submission.status != "in_progress":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This attempt has already been submitted")
     if not repo_link.strip() or not description.strip():
@@ -387,7 +389,7 @@ def my_submissions(project_id: int | None = None, db: Session = Depends(get_db),
 
 
 @router.get("/submissions", response_model=list[ProjectSubmissionOut])
-def list_submissions(status_filter: str | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_submissions(status_filter: str | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     query = db.query(ProjectSubmission)
     if status_filter:
         query = query.filter(ProjectSubmission.status == status_filter)
@@ -400,7 +402,7 @@ def _stored_file_display_name(relative_path: str) -> str:
 
 
 @router.get("/submissions/{submission_id}", response_model=ProjectSubmissionDetailOut)
-def get_project_submission_detail(submission_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def get_project_submission_detail(submission_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     submission = db.get(ProjectSubmission, submission_id)
     if submission is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
@@ -427,7 +429,7 @@ def get_project_submission_detail(submission_id: int, db: Session = Depends(get_
 
 
 @router.get("/submissions/{submission_id}/download")
-def download_project_submission(submission_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def download_project_submission(submission_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     submission = db.get(ProjectSubmission, submission_id)
     if submission is None or not submission.submission_file_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached to this submission")
@@ -435,7 +437,7 @@ def download_project_submission(submission_id: int, db: Session = Depends(get_db
 
 
 @router.put("/submissions/{submission_id}/grade", response_model=ProjectSubmissionOut)
-def grade_submission(submission_id: int, payload: ProjectGradeRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def grade_submission(submission_id: int, payload: ProjectGradeRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     submission = db.get(ProjectSubmission, submission_id)
     if submission is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
@@ -473,18 +475,18 @@ def grade_submission(submission_id: int, payload: ProjectGradeRequest, db: Sessi
         notification_type="evaluation",
         link_url="/projects",
     )
-    log_activity(db, admin.user_id, "admin", "grade_project_submission", "project_submissions", submission.id, None)
+    log_activity(db, admin.user_id, admin.user.role.name, "grade_project_submission", "project_submissions", submission.id, None)
     db.commit()
     db.refresh(submission)
     return submission
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
-def get_project(project_id: int, db: Session = Depends(get_db), role_user=Depends(require_any_role)):
+def get_project(project_id: int, db: Session = Depends(get_db), role_user=Depends(require_academic_role)):
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    if role_user.role.name == "admin":
+    if role_user.role.name in ("admin", "instructor"):
         return _project_out(project)
     student_row = db.query(Student).filter(Student.user_id == role_user.id).first()
     if student_row is None:
@@ -503,7 +505,7 @@ async def upload_project_instructions(
     project_id: int,
     file: UploadFile = ...,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     """Uploads (or replaces) the problem/question document for a project — one file shared by
     every student assigned to it, distinct from the optional per-student resource handed out via
@@ -520,14 +522,14 @@ async def upload_project_instructions(
     project.instructions_file_path = relative_path
     project.instructions_file_name = file.filename
     db.add(project)
-    log_activity(db, admin.user_id, "admin", "upload_project_instructions", "projects", project.id, file.filename)
+    log_activity(db, admin.user_id, admin.user.role.name, "upload_project_instructions", "projects", project.id, file.filename)
     db.commit()
     db.refresh(project)
     return _project_out(project)
 
 
 @router.delete("/{project_id}/instructions", response_model=ProjectOut)
-def delete_project_instructions(project_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def delete_project_instructions(project_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
@@ -536,7 +538,7 @@ def delete_project_instructions(project_id: int, db: Session = Depends(get_db), 
     project.instructions_file_path = None
     project.instructions_file_name = None
     db.add(project)
-    log_activity(db, admin.user_id, "admin", "delete_project_instructions", "projects", project.id, None)
+    log_activity(db, admin.user_id, admin.user.role.name, "delete_project_instructions", "projects", project.id, None)
     db.commit()
     db.refresh(project)
     return _project_out(project)
@@ -546,13 +548,13 @@ def delete_project_instructions(project_id: int, db: Session = Depends(get_db), 
 def download_project_instructions(
     project_id: int,
     db: Session = Depends(get_db),
-    role_user=Depends(require_any_role),
+    role_user=Depends(require_academic_role),
 ):
     project = db.get(Project, project_id)
     if project is None or not project.instructions_file_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No problem document available for this project")
 
-    if role_user.role.name != "admin":
+    if role_user.role.name not in ("admin", "instructor"):
         student_row = db.query(Student).filter(Student.user_id == role_user.id).first()
         if student_row is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student profile not found")
@@ -570,7 +572,7 @@ async def upload_student_resource(
     student_id: int,
     file: UploadFile = ...,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     """Uploads (or replaces) a zip file tied to one specific student for this project — e.g.
     tier-specific starter files. Re-uploading for the same (project, student) pair replaces the
@@ -605,14 +607,14 @@ async def upload_student_resource(
         )
         db.add(resource)
 
-    log_activity(db, admin.user_id, "admin", "upload_project_student_resource", "project_student_resources", project_id, f"{file.filename} -> student {student_id}")
+    log_activity(db, admin.user_id, admin.user.role.name, "upload_project_student_resource", "project_student_resources", project_id, f"{file.filename} -> student {student_id}")
     db.commit()
     db.refresh(resource)
     return resource
 
 
 @router.get("/{project_id}/students/{student_id}/resource", response_model=ProjectStudentResourceOut)
-def get_student_resource(project_id: int, student_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def get_student_resource(project_id: int, student_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     resource = db.query(ProjectStudentResource).filter(
         ProjectStudentResource.project_id == project_id, ProjectStudentResource.student_id == student_id
     ).first()
@@ -622,7 +624,7 @@ def get_student_resource(project_id: int, student_id: int, db: Session = Depends
 
 
 @router.delete("/{project_id}/students/{student_id}/resource", status_code=status.HTTP_204_NO_CONTENT)
-def delete_student_resource(project_id: int, student_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def delete_student_resource(project_id: int, student_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     resource = db.query(ProjectStudentResource).filter(
         ProjectStudentResource.project_id == project_id, ProjectStudentResource.student_id == student_id
     ).first()
@@ -630,13 +632,17 @@ def delete_student_resource(project_id: int, student_id: int, db: Session = Depe
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No resource uploaded for this student yet")
     delete_file(resource.file_path)
     db.delete(resource)
-    log_activity(db, admin.user_id, "admin", "delete_project_student_resource", "project_student_resources", project_id, f"student {student_id}")
+    log_activity(db, admin.user_id, admin.user.role.name, "delete_project_student_resource", "project_student_resources", project_id, f"student {student_id}")
     db.commit()
     return None
 
 
 @router.get("/{project_id}/resource/download")
 def download_my_resource(project_id: int, db: Session = Depends(get_db), student: Student = Depends(require_unsuspended_student)):
+    definition = db.get(Project, project_id)
+    if definition is None:
+        raise HTTPException(404, "Resource not found")
+    authorize_enrollment(db, student, definition.program_id)
     resource = db.query(ProjectStudentResource).filter(
         ProjectStudentResource.project_id == project_id, ProjectStudentResource.student_id == student.id
     ).first()

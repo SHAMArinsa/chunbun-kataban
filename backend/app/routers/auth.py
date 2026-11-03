@@ -16,6 +16,9 @@ from app.schemas.auth import (
     EmailOtpSendRequest,
     EmailOtpVerifyRequest,
     LoginRequest,
+    PasswordChangeRequest,
+    PasswordForgotRequest,
+    PasswordResetRequest,
     StudentRegisterRequest,
     UserMeOut,
 )
@@ -214,17 +217,22 @@ def get_me(user: User = Depends(get_current_user), db: Session = Depends(get_db)
     role = db.get(Role, user.role_id)
     full_name = None
     is_super_admin = False
+    permissions = None
     student_id = None
+    student_number = None
     national_id_type = None
     national_id_number = None
     if role.name == "student" and user.student:
         full_name = user.student.full_name
         student_id = user.student.id
+        student_number = user.student.student_number
         national_id_type = user.student.national_id_type
         national_id_number = user.student.national_id_number
-    elif role.name == "admin" and user.admin:
+    elif role.name in ("admin", "instructor") and user.admin:
         full_name = user.admin.full_name
-        is_super_admin = user.admin.is_super_admin
+        is_super_admin = role.name == "admin" and user.admin.is_super_admin
+        if role.name == "admin" and not is_super_admin:
+            permissions = user.admin.permissions
     return UserMeOut(
         id=user.id,
         email=user.email,
@@ -232,7 +240,48 @@ def get_me(user: User = Depends(get_current_user), db: Session = Depends(get_db)
         is_active=user.is_active,
         full_name=full_name,
         is_super_admin=is_super_admin,
+        permissions=permissions,
         student_id=student_id,
+        student_number=student_number,
         national_id_type=national_id_type,
         national_id_number=national_id_number,
     )
+
+
+@router.post("/password/forgot", status_code=status.HTTP_204_NO_CONTENT)
+def forgot_password(payload: PasswordForgotRequest, db: Session = Depends(get_db)):
+    """Always 204 so the endpoint never reveals whether an email is registered."""
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user is not None and user.is_active:
+        try:
+            request_email_otp(db, payload.email, purpose="password_reset")
+        except HTTPException as exc:
+            if exc.status_code != status.HTTP_429_TOO_MANY_REQUESTS:
+                raise
+    return None
+
+
+@router.post("/password/reset", status_code=status.HTTP_204_NO_CONTENT)
+def reset_password(payload: PasswordResetRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired code")
+    verify_email_otp(db, payload.email, payload.code, purpose="password_reset")
+    user.password_hash = hash_password(payload.new_password)
+    # Sign out every existing session after a reset.
+    for token in user.refresh_tokens:
+        if not token.revoked:
+            revoke_refresh_token(db, token)
+    db.add(user)
+    db.commit()
+    return None
+
+
+@router.post("/password/change", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(payload: PasswordChangeRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    user.password_hash = hash_password(payload.new_password)
+    db.add(user)
+    db.commit()
+    return None

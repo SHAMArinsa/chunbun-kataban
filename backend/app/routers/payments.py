@@ -3,7 +3,7 @@ import hmac
 import json
 from datetime import date, datetime, time, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -17,13 +17,22 @@ from app.schemas.enrollment import MarkPaidRequest, PaymentAdminOut, PaymentOut,
 from app.core.config import settings
 from app.services.activity_log_service import log_activity
 from app.services.payment_service import activate_payment
+from app.services.v2_documents import dispatch_pending
 from app.services.razorpay_service import create_order, verify_signature
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
 
+def _dispatch_in_background(delivery_ids: list[int]) -> None:
+    """Send invoice / welcome emails after the response, with a fresh DB session, so a slow or
+    broken mail server never delays (or fails) payment confirmation in the browser."""
+    from app.core.database import SessionLocal
+    with SessionLocal() as bg_db:
+        dispatch_pending(bg_db, delivery_ids)
+
+
 @router.post("/razorpay/webhook", status_code=status.HTTP_200_OK)
-async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
+async def razorpay_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Process Razorpay's server-to-server payment confirmation securely."""
     if not settings.RAZORPAY_WEBHOOK_SECRET:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Razorpay webhook is not configured")
@@ -59,8 +68,9 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="NDA acceptance is required")
 
     activate_payment(db, payment, method="razorpay", razorpay_order_id=order_id, razorpay_payment_id=payment_id)
+    delivery_ids = payment.pending_delivery_ids
     db.commit()
-    db.refresh(payment)
+    background_tasks.add_task(_dispatch_in_background, delivery_ids)
 
     return {"status": "processed"}
 
@@ -147,7 +157,9 @@ def mark_paid(
     activate_payment(db, payment, method="manual_offline", admin_id=admin.id, notes=payload.notes)
 
     log_activity(db, admin.user_id, "admin", "mark_payment_paid", "payments", payment.id, f"Marked paid: {payment.total_amount} {payment.currency}")
+    delivery_ids = payment.pending_delivery_ids
     db.commit()
+    dispatch_pending(db, delivery_ids)
     db.refresh(payment)
     return payment
 
@@ -178,6 +190,7 @@ def razorpay_create_order(payment_id: int, db: Session = Depends(get_db), studen
 def razorpay_verify(
     payment_id: int,
     payload: RazorpayVerifyRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student),
 ):
@@ -205,6 +218,8 @@ def razorpay_verify(
         razorpay_payment_id=payload.razorpay_payment_id,
         razorpay_signature=payload.razorpay_signature,
     )
+    delivery_ids = payment.pending_delivery_ids
     db.commit()
     db.refresh(payment)
+    background_tasks.add_task(_dispatch_in_background, delivery_ids)
     return payment

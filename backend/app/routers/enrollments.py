@@ -40,7 +40,13 @@ def create_enrollment(
         start_date=date.today(),
         expected_end_date=date.today() + timedelta(weeks=program.duration_weeks),
         current_phase="phase1" if program.code == "platinum" else None,
+        # V2 programs opt the new enrollment into their workflow policy; dates are
+        # re-anchored to the payment date when the payment succeeds.
+        workflow_policy_id=program.workflow_policy_id,
     )
+    if program.workflow_policy_id and program.duration and program.duration_unit:
+        from app.services.v2 import add_duration
+        enrollment.expected_end_date = add_duration(date.today(), program.duration, program.duration_unit)
     db.add(enrollment)
     db.flush()
 
@@ -65,6 +71,7 @@ def create_enrollment(
 def _enrollment_out(enrollment: ProgramEnrollment) -> EnrollmentOut:
     out = EnrollmentOut.model_validate(enrollment)
     out.program_code = enrollment.program.code if enrollment.program else None
+    out.program_name = enrollment.program.name if enrollment.program else None
     return out
 
 

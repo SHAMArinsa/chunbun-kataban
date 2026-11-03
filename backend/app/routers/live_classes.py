@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_admin, get_current_student, require_any_role
+from app.core.deps import get_current_staff, get_current_student, require_academic_role
 from app.models.engagement import Attendance
 from app.models.people import Admin, Student
 from app.models.program import BatchMember, InternshipProgram, ProgramEnrollment
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/live-classes", tags=["live-classes"])
 
 
 @router.post("", response_model=LiveClassOut, status_code=status.HTTP_201_CREATED)
-def create_live_class(payload: LiveClassCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def create_live_class(payload: LiveClassCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     program = db.get(InternshipProgram, payload.program_id)
     if program is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Program not found")
@@ -25,14 +25,14 @@ def create_live_class(payload: LiveClassCreateRequest, db: Session = Depends(get
 
     live_class = LiveClass(**payload.model_dump(), created_by=admin.id)
     db.add(live_class)
-    log_activity(db, admin.user_id, "admin", "create_live_class", "live_classes", None, payload.title)
+    log_activity(db, admin.user_id, admin.user.role.name, "create_live_class", "live_classes", None, payload.title)
     db.commit()
     db.refresh(live_class)
     return live_class
 
 
 @router.put("/{live_class_id}", response_model=LiveClassOut)
-def update_live_class(live_class_id: int, payload: LiveClassUpdateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def update_live_class(live_class_id: int, payload: LiveClassUpdateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     live_class = db.get(LiveClass, live_class_id)
     if live_class is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Live class not found")
@@ -45,7 +45,7 @@ def update_live_class(live_class_id: int, payload: LiveClassUpdateRequest, db: S
 
 
 @router.delete("/{live_class_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_live_class(live_class_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def delete_live_class(live_class_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     live_class = db.get(LiveClass, live_class_id)
     if live_class is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Live class not found")
@@ -53,14 +53,14 @@ def delete_live_class(live_class_id: int, db: Session = Depends(get_db), admin: 
     title = live_class.title
     db.query(Attendance).filter(Attendance.live_class_id == live_class_id).delete(synchronize_session=False)
     db.delete(live_class)
-    log_activity(db, admin.user_id, "admin", "delete_live_class", "live_classes", live_class_id, title)
+    log_activity(db, admin.user_id, admin.user.role.name, "delete_live_class", "live_classes", live_class_id, title)
     db.commit()
     return None
 
 
 @router.get("", response_model=list[LiveClassOut])
-def list_live_classes(db: Session = Depends(get_db), role_user=Depends(require_any_role)):
-    if role_user.role.name == "admin":
+def list_live_classes(db: Session = Depends(get_db), role_user=Depends(require_academic_role)):
+    if role_user.role.name in ("admin", "instructor"):
         return db.query(LiveClass).order_by(LiveClass.scheduled_date.desc()).all()
 
     student_row = db.query(Student).filter(Student.user_id == role_user.id).first()

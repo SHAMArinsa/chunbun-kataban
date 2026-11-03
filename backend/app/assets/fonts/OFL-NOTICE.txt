@@ -1,0 +1,3 @@
+Great Vibes, Playfair Display, Montserrat and Cinzel are licensed under the SIL Open Font License 1.1
+(https://openfontlicense.org). Source: https://github.com/google/fonts. Static weights were instanced
+from the variable fonts for PDF generation.

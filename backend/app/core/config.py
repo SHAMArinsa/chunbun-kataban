@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = ""
 
     MAX_UPLOAD_SIZE_MB: int = 25
+    MAX_VIDEO_UPLOAD_MB: int = 300
     UPLOAD_ROOT: str = "uploads"
     STORAGE_PROVIDER: str = "local"
     BLOB_READ_WRITE_TOKEN: str = ""

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_admin, get_current_student
+from app.core.deps import get_current_staff, get_current_student
 from app.models.assessment import AssignmentSubmission, CodingAssignment
 from app.models.people import Admin, Student
 from app.models.program import InternshipProgram
@@ -60,7 +60,7 @@ def _file_display_name(relative_path: str) -> str:
 
 
 @router.get("/pending", response_model=list[PendingReviewItem])
-def pending_reviews(search: str | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def pending_reviews(search: str | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     items: list[PendingReviewItem] = []
 
     coding_rows = (
@@ -108,7 +108,7 @@ def pending_reviews(search: str | None = None, db: Session = Depends(get_db), ad
 
 
 @router.get("/pending-count", response_model=PendingCountOut)
-def pending_count(db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def pending_count(db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     coding_pending = db.query(AssignmentSubmission).filter(AssignmentSubmission.status.in_(["submitted", "under_review"])).count()
     project_pending = db.query(ProjectSubmission).filter(ProjectSubmission.status.in_(["submitted", "under_review"])).count()
     return PendingCountOut(coding_pending=coding_pending, project_pending=project_pending, total_pending=coding_pending + project_pending)
@@ -119,7 +119,7 @@ def list_evaluations(
     student_id: int | None = None,
     evaluation_type: str | None = None,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     query = db.query(Evaluation)
     if student_id:
@@ -137,7 +137,7 @@ def my_evaluations(db: Session = Depends(get_db), student: Student = Depends(get
 
 
 @router.post("", response_model=EvaluationOut, status_code=status.HTTP_201_CREATED)
-def create_evaluation(payload: EvaluationCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def create_evaluation(payload: EvaluationCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     evaluation = Evaluation(**payload.model_dump(), reference_table="manual_entry", reference_id=0, evaluated_by=admin.id)
     db.add(evaluation)
     db.commit()
@@ -146,7 +146,7 @@ def create_evaluation(payload: EvaluationCreateRequest, db: Session = Depends(ge
 
 
 @router.get("/{evaluation_id}", response_model=EvaluationOut)
-def get_evaluation(evaluation_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def get_evaluation(evaluation_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     evaluation = db.get(Evaluation, evaluation_id)
     if evaluation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation not found")
@@ -154,7 +154,7 @@ def get_evaluation(evaluation_id: int, db: Session = Depends(get_db), admin: Adm
 
 
 @router.put("/{evaluation_id}/remarks", response_model=EvaluationOut)
-def update_remarks(evaluation_id: int, payload: EvaluationRemarksUpdateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def update_remarks(evaluation_id: int, payload: EvaluationRemarksUpdateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     """Lets admin add or edit remarks on an evaluation independent of (re-)grading — e.g. to
     follow up with a note after the fact."""
     evaluation = db.get(Evaluation, evaluation_id)
@@ -162,7 +162,7 @@ def update_remarks(evaluation_id: int, payload: EvaluationRemarksUpdateRequest, 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation not found")
     evaluation.feedback = payload.feedback
     db.add(evaluation)
-    log_activity(db, admin.user_id, "admin", "update_evaluation_remarks", "evaluations", evaluation_id, None)
+    log_activity(db, admin.user_id, admin.user.role.name, "update_evaluation_remarks", "evaluations", evaluation_id, None)
     db.commit()
     db.refresh(evaluation)
     return _evaluation_out(db, evaluation)

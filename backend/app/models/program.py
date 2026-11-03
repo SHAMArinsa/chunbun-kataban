@@ -19,6 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 PROGRAM_CODES = ("basic", "professional", "premium", "platinum")
+V2_PROGRAM_CODES = ("basic", "professional", "advanced", "career", "career_accelerator")
 DOMAIN_NAMES = ("python", "web_dev", "database", "ai", "genai", "software_engineering")
 PHASES = ("phase1", "phase2")
 MILESTONE_TYPES = ("assessment", "coding_test", "project", "live_class", "capstone", "mock_interview")
@@ -34,7 +35,14 @@ class InternshipProgram(Base):
     __tablename__ = "internship_programs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(Enum(*PROGRAM_CODES, name="program_code"), unique=True, nullable=False)
+    # Widening preserves all legacy codes; old PostgreSQL enum retained for rollback.
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    workflow_policy_id: Mapped[int | None] = mapped_column(ForeignKey("program_workflow_policies.id"))
+    duration: Mapped[int | None] = mapped_column(Integer)
+    duration_unit: Mapped[str | None] = mapped_column(String(10))
+    offer_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    offer_end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    offer_enabled: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     duration_weeks: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -123,6 +131,10 @@ class ProgramEnrollment(Base):
     __tablename__ = "program_enrollments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # NULL means legacy/unclassified, never an inferred V2 enrollment.
+    workflow_policy_id: Mapped[int | None] = mapped_column(ForeignKey("program_workflow_policies.id"))
+    assignment_set: Mapped[int | None] = mapped_column(Integer)  # Career Accelerator: the 22-assignment set given to this student
+    original_end_date: Mapped[date | None] = mapped_column(Date)
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
     program_id: Mapped[int] = mapped_column(ForeignKey("internship_programs.id"), nullable=False)
     specialization_track_id: Mapped[int | None] = mapped_column(ForeignKey("specialization_tracks.id"))

@@ -91,7 +91,7 @@ def list_tickets(status_filter: str | None = None, db: Session = Depends(get_db)
 
 
 @router.get("/tickets/{ticket_id}", response_model=SupportTicketOut)
-def get_ticket(ticket_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_ticket(ticket_id: int, db: Session = Depends(get_db), user: User = Depends(require_any_role)):
     ticket = db.get(SupportTicket, ticket_id)
     if ticket is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
@@ -133,7 +133,7 @@ async def reply_to_ticket(
     message: str = Form(...),
     file: UploadFile | None = None,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_any_role),
 ):
     ticket = db.get(SupportTicket, ticket_id)
     if ticket is None:
@@ -178,7 +178,7 @@ def _attachment_download(db: Session, user: User, attachment_path: str | None, a
 
 
 @router.get("/tickets/{ticket_id}/attachment")
-def download_ticket_attachment(ticket_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def download_ticket_attachment(ticket_id: int, db: Session = Depends(get_db), user: User = Depends(require_any_role)):
     ticket = db.get(SupportTicket, ticket_id)
     if ticket is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
@@ -186,7 +186,7 @@ def download_ticket_attachment(ticket_id: int, db: Session = Depends(get_db), us
 
 
 @router.get("/tickets/{ticket_id}/replies/{reply_id}/attachment")
-def download_reply_attachment(ticket_id: int, reply_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def download_reply_attachment(ticket_id: int, reply_id: int, db: Session = Depends(get_db), user: User = Depends(require_any_role)):
     ticket = db.get(SupportTicket, ticket_id)
     if ticket is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")

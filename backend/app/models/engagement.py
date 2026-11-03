@@ -25,6 +25,12 @@ class Certificate(Base):
     __tablename__ = "certificates"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    status: Mapped[str | None] = mapped_column(String(20))
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    revocation_reason: Mapped[str | None] = mapped_column(Text)
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
     enrollment_id: Mapped[int] = mapped_column(ForeignKey("program_enrollments.id"), nullable=False)
     certificate_type: Mapped[str] = mapped_column(Enum(*CERTIFICATE_TYPES, name="certificate_type"), nullable=False)
@@ -59,6 +65,8 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    event_key: Mapped[str | None] = mapped_column(String(200), unique=True)
+    program_id: Mapped[int | None] = mapped_column(ForeignKey("internship_programs.id"), index=True)
     recipient_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     recipient_role: Mapped[str | None] = mapped_column(String(20))
     title: Mapped[str] = mapped_column(String(200), nullable=False)

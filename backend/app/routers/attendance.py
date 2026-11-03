@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_admin, get_current_student
+from app.core.deps import get_current_staff, get_current_student
 from app.models.engagement import Attendance
 from app.models.people import Admin, Student
 from app.schemas.engagement import AttendanceMarkRequest, AttendanceOut
@@ -16,7 +16,7 @@ def my_attendance(db: Session = Depends(get_db), student: Student = Depends(get_
 
 
 @router.get("", response_model=list[AttendanceOut])
-def list_attendance(live_class_id: int | None = None, student_id: int | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_attendance(live_class_id: int | None = None, student_id: int | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     query = db.query(Attendance)
     if live_class_id:
         query = query.filter(Attendance.live_class_id == live_class_id)
@@ -26,7 +26,7 @@ def list_attendance(live_class_id: int | None = None, student_id: int | None = N
 
 
 @router.post("", response_model=AttendanceOut, status_code=status.HTTP_201_CREATED)
-def mark_attendance(payload: AttendanceMarkRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def mark_attendance(payload: AttendanceMarkRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     existing = db.query(Attendance).filter(Attendance.student_id == payload.student_id, Attendance.live_class_id == payload.live_class_id).first()
     if existing:
         existing.status = payload.status

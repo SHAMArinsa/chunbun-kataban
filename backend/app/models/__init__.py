@@ -44,3 +44,18 @@ from app.models.engagement import (  # noqa: F401
 from app.models.admin_ops import Setting, ActivityLog, GeneratedReport  # noqa: F401
 from app.models.nda import NdaAcceptance  # noqa: F401
 from app.models.proctoring import ProctoringViolation, WatermarkSession  # noqa: F401
+from app.models.portal_v2 import (  # noqa: F401
+    MockInterviewRequest,
+    WorkFeedbackMessage,
+    ProgramWorkflowPolicy, ProgramStage, ProgramRequirement, RequirementDependency,
+    RequirementProgress, EnrollmentAccessExtension, ProjectSelection,
+    ProjectSelectionEvent, AreaOfInterest, AreaOfInterestProgram, InternshipForm,
+    ResumeVersion, ReviewEvent, EligibilityCriterion, EligibilityState,
+    EligibilityDecision, CertificateEvent, InvoiceArtifact, DocumentDelivery,
+    DeliveryAttempt, NotificationReceipt,
+)
+from app.models.tiers import (  # noqa: F401
+    BasicTrack, ProfessionalTrack, AdvancedTrack, CareerTrack, AcceleratorTrack,
+    BasicEvaluation, ProfessionalEvaluation, AdvancedEvaluation, CareerEvaluation,
+    AcceleratorEvaluation, StudentAdminNote,
+)

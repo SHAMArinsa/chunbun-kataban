@@ -4,8 +4,9 @@ import mimetypes
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.services.enrollment_access import authorize_enrollment, authorize_submission
 from app.core.database import get_db
-from app.core.deps import get_current_admin, get_current_student, require_any_role, require_unsuspended_student
+from app.core.deps import get_current_staff, get_current_student, require_academic_role, require_unsuspended_student
 from app.core.config import settings
 from app.models.assessment import (
     AssignmentSubmission,
@@ -90,17 +91,17 @@ def _is_coding_ready_for_student(db: Session, coding: CodingAssignment, student_
 
 
 @router.post("", response_model=CodingAssignmentOut, status_code=status.HTTP_201_CREATED)
-def create_coding_assignment(payload: CodingAssignmentCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def create_coding_assignment(payload: CodingAssignmentCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     coding = CodingAssignment(**payload.model_dump(), created_by=admin.id)
     db.add(coding)
-    log_activity(db, admin.user_id, "admin", "create_coding_assignment", "coding_assignments", None, payload.title)
+    log_activity(db, admin.user_id, admin.user.role.name, "create_coding_assignment", "coding_assignments", None, payload.title)
     db.commit()
     db.refresh(coding)
     return coding
 
 
 @router.post("/{coding_id}/problems", response_model=CodingProblemOut, status_code=status.HTTP_201_CREATED)
-def add_problem(coding_id: int, payload: CodingProblemCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def add_problem(coding_id: int, payload: CodingProblemCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     coding = db.get(CodingAssignment, coding_id)
     if coding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coding assignment not found")
@@ -119,7 +120,7 @@ async def upload_problem_sheets(
     due_date: date | None = Form(None),
     duration_minutes: int | None = Form(None),
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     """Bulk-uploads coding problems: each .docx/.pdf/.txt file becomes its own sheet (named after
     the file, or after `title` when exactly one file/zip-entry is uploaded), and a .zip is expanded
@@ -184,14 +185,14 @@ async def upload_problem_sheets(
         db.add(sheet)
         sheets_out[0] = CodingProblemSheetOut(**{**sheets_out[0].model_dump(), "title": title})
 
-    log_activity(db, admin.user_id, "admin", "upload_coding_problems", "coding_assignments", coding_id, f"{len(sheets_out)} sheet(s), {total_parsed} problems")
+    log_activity(db, admin.user_id, admin.user.role.name, "upload_coding_problems", "coding_assignments", coding_id, f"{len(sheets_out)} sheet(s), {total_parsed} problems")
     db.commit()
 
     return CodingBulkUploadResult(sheets=sheets_out, total_problems_parsed=total_parsed, total_problems_skipped=total_skipped, files_skipped=files_skipped)
 
 
 @router.get("/{coding_id}/sheets", response_model=list[CodingProblemSheetOut])
-def list_problem_sheets(coding_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_problem_sheets(coding_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     sheets = db.query(CodingProblemSheet).filter(CodingProblemSheet.coding_assignment_id == coding_id).order_by(CodingProblemSheet.id.desc()).all()
     out = []
     for sheet in sheets:
@@ -219,6 +220,9 @@ def _authorize_sheet_access(db: Session, sheet: CodingProblemSheet, user) -> Non
     student_row = db.query(Student).filter(Student.user_id == user.id).first()
     if student_row is not None:
         require_unsuspended_student(student_row, db)
+    if student_row is not None:
+        coding = db.get(CodingAssignment, sheet.coding_assignment_id)
+        authorize_enrollment(db, student_row, coding.program_id if coding else None)
     assigned = student_row and db.query(CodingSheetAssignment).filter(
         CodingSheetAssignment.sheet_id == sheet.id,
         CodingSheetAssignment.student_id == student_row.id,
@@ -228,7 +232,7 @@ def _authorize_sheet_access(db: Session, sheet: CodingProblemSheet, user) -> Non
 
 
 @router.get("/sheets/{sheet_id}/download")
-def download_sheet_source_file(sheet_id: int, db: Session = Depends(get_db), user=Depends(require_any_role)):
+def download_sheet_source_file(sheet_id: int, db: Session = Depends(get_db), user=Depends(require_academic_role)):
     sheet = db.get(CodingProblemSheet, sheet_id)
     if sheet is None or not sheet.source_file_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No source file available for this sheet")
@@ -257,7 +261,7 @@ def _locked_student_ids(db: Session, coding_assignment_id: int, student_ids: lis
 
 
 @router.get("/{coding_id}/student-status", response_model=list[StudentCodingStatusOut])
-def coding_student_status(coding_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def coding_student_status(coding_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     coding = db.get(CodingAssignment, coding_id)
     if coding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coding assignment not found")
@@ -296,7 +300,7 @@ def coding_student_status(coding_id: int, db: Session = Depends(get_db), admin: 
         attempts_used = attempts_used_by_student.get(student.id, 0)
         attempts_remaining = max(0, coding.max_attempts - attempts_used)
         out.append(StudentCodingStatusOut(
-            student_id=student.id, full_name=student.full_name, email=email, enrollment_status=enrollment_status,
+            student_id=student.id, full_name=student.full_name, email=email, enrollment_status=("unavailable" if admin.user.role.name == "instructor" and enrollment_status == "pending_payment" else enrollment_status),
             has_sheet=student.id in sheet_ids_with_problems, attempted=attempted,
             attempts_used=attempts_used, max_attempts=coding.max_attempts, attempts_remaining=attempts_remaining,
             locked=attempted and not retake_granted, retake_granted=retake_granted,
@@ -322,7 +326,7 @@ def coding_roster(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     """Full enterprise roster for one coding assignment: every enrolled student, always visible,
     with derived assignment/evaluation status, attempt counts, and scores. Filtering, search,
@@ -425,7 +429,7 @@ def coding_roster(
 
         items.append(CodingRosterItemOut(
             student_id=student.id, full_name=student.full_name, email=email,
-            plan=plan_code, batch=batch_by_student.get(student.id), enrollment_status=enrollment_status,
+            plan=plan_code, batch=batch_by_student.get(student.id), enrollment_status=("unavailable" if admin.user.role.name == "instructor" and enrollment_status == "pending_payment" else enrollment_status),
             assignment_status=assignment_status, attempts_used=attempts_used, max_attempts=coding.max_attempts,
             attempts_remaining=attempts_remaining_n, highest_score_pct=highest_score_pct, current_score_pct=current_score_pct,
             evaluation_status=evaluation_status,
@@ -472,7 +476,7 @@ def coding_roster(
 
 
 @router.post("/sheets/{sheet_id}/assign", status_code=status.HTTP_201_CREATED)
-def assign_problem_sheet(sheet_id: int, payload: SheetAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def assign_problem_sheet(sheet_id: int, payload: SheetAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     sheet = db.get(CodingProblemSheet, sheet_id)
     if sheet is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sheet not found")
@@ -515,13 +519,13 @@ def assign_problem_sheet(sheet_id: int, payload: SheetAssignRequest, db: Session
         notification_type="info",
         link_url="/coding",
     )
-    log_activity(db, admin.user_id, "admin", "assign_coding_sheet", "coding_problem_sheets", sheet_id, f"Assigned to {added} student(s)")
+    log_activity(db, admin.user_id, admin.user.role.name, "assign_coding_sheet", "coding_problem_sheets", sheet_id, f"Assigned to {added} student(s)")
     db.commit()
     return {"status": "assigned", "newly_assigned": added, "already_assigned": len(existing)}
 
 
 @router.get("/sheets/{sheet_id}/assignments", response_model=list[SheetAssignedStudentOut])
-def list_sheet_assignments(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_sheet_assignments(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     rows = (
         db.query(Student.id, Student.full_name, User.email)
         .join(CodingSheetAssignment, CodingSheetAssignment.student_id == Student.id)
@@ -533,7 +537,7 @@ def list_sheet_assignments(sheet_id: int, db: Session = Depends(get_db), admin: 
 
 
 @router.get("/sheets/{sheet_id}/problems", response_model=list[CodingProblemOut])
-def get_sheet_problems(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def get_sheet_problems(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     sheet = db.get(CodingProblemSheet, sheet_id)
     if sheet is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sheet not found")
@@ -541,7 +545,7 @@ def get_sheet_problems(sheet_id: int, db: Session = Depends(get_db), admin: Admi
 
 
 @router.delete("/sheets/{sheet_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_problem_sheet(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def delete_problem_sheet(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     sheet = db.get(CodingProblemSheet, sheet_id)
     if sheet is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sheet not found")
@@ -562,7 +566,7 @@ def delete_problem_sheet(sheet_id: int, db: Session = Depends(get_db), admin: Ad
     source_file_path = sheet.source_file_path
     db.query(CodingSheetAssignment).filter(CodingSheetAssignment.sheet_id == sheet_id).delete(synchronize_session=False)
     db.delete(sheet)
-    log_activity(db, admin.user_id, "admin", "delete_coding_sheet", "coding_problem_sheets", sheet_id, title)
+    log_activity(db, admin.user_id, admin.user.role.name, "delete_coding_sheet", "coding_problem_sheets", sheet_id, title)
     db.commit()
     if source_file_path:
         delete_file(source_file_path)
@@ -570,7 +574,7 @@ def delete_problem_sheet(sheet_id: int, db: Session = Depends(get_db), admin: Ad
 
 
 @router.post("/{coding_id}/assign", status_code=status.HTTP_201_CREATED)
-def assign_coding(coding_id: int, payload: CodingAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def assign_coding(coding_id: int, payload: CodingAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     coding = db.get(CodingAssignment, coding_id)
     if coding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coding assignment not found")
@@ -591,7 +595,7 @@ def assign_coding(coding_id: int, payload: CodingAssignRequest, db: Session = De
 
 
 @router.post("/{coding_id}/assign-students", status_code=status.HTTP_201_CREATED)
-def assign_coding_to_students(coding_id: int, payload: SheetAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def assign_coding_to_students(coding_id: int, payload: SheetAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     """Grants individual students visibility into this coding assignment (separate from which
     sheet/problems they end up with — see the sheet-assignment endpoints for that)."""
     coding = db.get(CodingAssignment, coding_id)
@@ -621,13 +625,13 @@ def assign_coding_to_students(coding_id: int, payload: SheetAssignRequest, db: S
         notification_type="info",
         link_url="/coding",
     )
-    log_activity(db, admin.user_id, "admin", "assign_coding_students", "coding_assignments", coding_id, f"Assigned to {added} student(s)")
+    log_activity(db, admin.user_id, admin.user.role.name, "assign_coding_students", "coding_assignments", coding_id, f"Assigned to {added} student(s)")
     db.commit()
     return {"status": "assigned", "newly_assigned": added, "already_assigned": len(existing)}
 
 
 @router.get("/{coding_id}/assigned-students", response_model=list[SheetAssignedStudentOut])
-def list_assigned_students(coding_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_assigned_students(coding_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     rows = (
         db.query(Student.id, Student.full_name, User.email)
         .join(CodingAssignmentAssignment, CodingAssignmentAssignment.student_id == Student.id)
@@ -639,7 +643,7 @@ def list_assigned_students(coding_id: int, db: Session = Depends(get_db), admin:
 
 
 @router.post("/{coding_id}/students/{student_id}/resource", status_code=status.HTTP_201_CREATED)
-async def upload_student_resource(coding_id: int, student_id: int, file: UploadFile, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+async def upload_student_resource(coding_id: int, student_id: int, file: UploadFile, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     coding, student = db.get(CodingAssignment, coding_id), db.get(Student, student_id)
     if coding is None or student is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coding assignment or student not found")
@@ -661,6 +665,10 @@ async def upload_student_resource(coding_id: int, student_id: int, file: UploadF
 
 @router.get("/{coding_id}/resource/download")
 def download_my_resource(coding_id: int, db: Session = Depends(get_db), student: Student = Depends(require_unsuspended_student)):
+    definition = db.get(CodingAssignment, coding_id)
+    if definition is None:
+        raise HTTPException(404, "Resource not found")
+    authorize_enrollment(db, student, definition.program_id)
     resource = db.query(CodingStudentResource).filter(CodingStudentResource.coding_assignment_id == coding_id, CodingStudentResource.student_id == student.id).first()
     if resource is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No supporting file has been uploaded for you")
@@ -668,8 +676,8 @@ def download_my_resource(coding_id: int, db: Session = Depends(get_db), student:
 
 
 @router.get("", response_model=list[CodingAssignmentOut])
-def list_coding_assignments(db: Session = Depends(get_db), role_user=Depends(require_any_role)):
-    if role_user.role.name == "admin":
+def list_coding_assignments(db: Session = Depends(get_db), role_user=Depends(require_academic_role)):
+    if role_user.role.name in ("admin", "instructor"):
         return db.query(CodingAssignment).filter(CodingAssignment.is_active.is_(True)).order_by(CodingAssignment.id.desc()).all()
 
     student_row = db.query(Student).filter(Student.user_id == role_user.id).first()
@@ -700,7 +708,7 @@ def my_submissions(coding_id: int | None = None, db: Session = Depends(get_db), 
 
 
 @router.get("/submissions", response_model=list[AssignmentSubmissionOut])
-def list_submissions(status_filter: str | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_submissions(status_filter: str | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     query = db.query(AssignmentSubmission)
     if status_filter:
         query = query.filter(AssignmentSubmission.status == status_filter)
@@ -708,7 +716,7 @@ def list_submissions(status_filter: str | None = None, db: Session = Depends(get
 
 
 @router.get("/submissions/{submission_id}", response_model=AssignmentSubmissionDetailOut)
-def get_submission_detail(submission_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def get_submission_detail(submission_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     submission = db.get(AssignmentSubmission, submission_id)
     if submission is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
@@ -747,7 +755,7 @@ def get_submission_detail(submission_id: int, db: Session = Depends(get_db), adm
 
 
 @router.get("/submissions/{submission_id}/files/{file_id}/download")
-def download_submission_file(submission_id: int, file_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def download_submission_file(submission_id: int, file_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     file_row = db.get(AssignmentSubmissionFile, file_id)
     if file_row is None or file_row.submission_id != submission_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
@@ -755,7 +763,7 @@ def download_submission_file(submission_id: int, file_id: int, db: Session = Dep
 
 
 @router.put("/submissions/{submission_id}/grade", response_model=AssignmentSubmissionOut)
-def grade_submission(submission_id: int, payload: GradeSubmissionRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def grade_submission(submission_id: int, payload: GradeSubmissionRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     submission = db.get(AssignmentSubmission, submission_id)
     if submission is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
@@ -792,18 +800,18 @@ def grade_submission(submission_id: int, payload: GradeSubmissionRequest, db: Se
         notification_type="evaluation",
         link_url="/coding",
     )
-    log_activity(db, admin.user_id, "admin", "grade_coding_submission", "assignment_submissions", submission.id, None)
+    log_activity(db, admin.user_id, admin.user.role.name, "grade_coding_submission", "assignment_submissions", submission.id, None)
     db.commit()
     db.refresh(submission)
     return submission
 
 
 @router.get("/{coding_id}", response_model=CodingAssignmentOut)
-def get_coding_assignment(coding_id: int, db: Session = Depends(get_db), role_user=Depends(require_any_role)):
+def get_coding_assignment(coding_id: int, db: Session = Depends(get_db), role_user=Depends(require_academic_role)):
     coding = db.get(CodingAssignment, coding_id)
     if coding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coding assignment not found")
-    if role_user.role.name == "admin":
+    if role_user.role.name in ("admin", "instructor"):
         return coding
     student_row = db.query(Student).filter(Student.user_id == role_user.id).first()
     if student_row is None:
@@ -876,6 +884,7 @@ async def submit_coding_files(
     submission = db.get(AssignmentSubmission, submission_id)
     if submission is None or submission.student_id != student.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
+    authorize_submission(db, student, submission, db.get(CodingAssignment, submission.coding_assignment_id))
     if submission.status != "in_progress":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This attempt has already been submitted")
     if not files:

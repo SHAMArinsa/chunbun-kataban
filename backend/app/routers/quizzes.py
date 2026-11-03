@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.services.enrollment_access import authorize_enrollment
 from app.core.database import get_db
-from app.core.deps import get_current_admin, get_current_student, require_any_role, require_unsuspended_student
+from app.core.deps import get_current_staff, get_current_student, require_academic_role, require_unsuspended_student
 from app.models.assessment import (
     Quiz,
     QuizAttempt,
@@ -38,22 +39,22 @@ router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
 
 
 @router.post("", response_model=QuizOut, status_code=status.HTTP_201_CREATED)
-def create_quiz(payload: QuizCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def create_quiz(payload: QuizCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     quiz = Quiz(**payload.model_dump(), created_by=admin.id)
     db.add(quiz)
-    log_activity(db, admin.user_id, "admin", "create_quiz", "quizzes", None, payload.title)
+    log_activity(db, admin.user_id, admin.user.role.name, "create_quiz", "quizzes", None, payload.title)
     db.commit()
     db.refresh(quiz)
     return quiz
 
 
 @router.get("", response_model=list[QuizOut])
-def list_quizzes(program_id: int | None = None, db: Session = Depends(get_db), role_user=Depends(require_any_role)):
+def list_quizzes(program_id: int | None = None, db: Session = Depends(get_db), role_user=Depends(require_academic_role)):
     query = db.query(Quiz).filter(Quiz.is_active.is_(True))
     if program_id:
         query = query.filter(Quiz.program_id == program_id)
 
-    if role_user.role.name != "admin":
+    if role_user.role.name not in ("admin", "instructor"):
         student = db.query(Student).filter(Student.user_id == role_user.id).first()
         if student is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student profile not found")
@@ -66,7 +67,7 @@ def list_quizzes(program_id: int | None = None, db: Session = Depends(get_db), r
 
 
 @router.post("/{quiz_id}/questions", response_model=QuizQuestionAdminOut, status_code=status.HTTP_201_CREATED)
-def add_question(quiz_id: int, payload: QuizQuestionCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def add_question(quiz_id: int, payload: QuizQuestionCreateRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     quiz = db.get(Quiz, quiz_id)
     if quiz is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
@@ -78,7 +79,7 @@ def add_question(quiz_id: int, payload: QuizQuestionCreateRequest, db: Session =
 
 
 @router.get("/{quiz_id}/questions", response_model=list[QuizQuestionAdminOut])
-def list_questions(quiz_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_questions(quiz_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     return db.query(QuizQuestion).filter(QuizQuestion.quiz_id == quiz_id).all()
 
 
@@ -88,7 +89,7 @@ async def upload_question_sheet(
     title: str = Form(...),
     file: UploadFile = ...,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(get_current_admin),
+    admin: Admin = Depends(get_current_staff),
 ):
     """Bulk-uploads an Excel MCQ sheet (question, option_a-d, correct_option columns) for a quiz.
     Once a quiz has any sheets, students only draw from sheets explicitly assigned to them —
@@ -107,7 +108,7 @@ async def upload_question_sheet(
     for row in rows:
         db.add(QuizQuestion(quiz_id=quiz_id, sheet_id=sheet.id, **row))
 
-    log_activity(db, admin.user_id, "admin", "upload_quiz_sheet", "quiz_question_sheets", sheet.id, f"{title} ({len(rows)} questions)")
+    log_activity(db, admin.user_id, admin.user.role.name, "upload_quiz_sheet", "quiz_question_sheets", sheet.id, f"{title} ({len(rows)} questions)")
     db.commit()
     db.refresh(sheet)
 
@@ -122,7 +123,7 @@ async def upload_question_sheet(
 
 
 @router.get("/{quiz_id}/sheets", response_model=list[QuizQuestionSheetOut])
-def list_question_sheets(quiz_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_question_sheets(quiz_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     sheets = db.query(QuizQuestionSheet).filter(QuizQuestionSheet.quiz_id == quiz_id).order_by(QuizQuestionSheet.id.desc()).all()
     out = []
     for sheet in sheets:
@@ -136,7 +137,7 @@ def list_question_sheets(quiz_id: int, db: Session = Depends(get_db), admin: Adm
 
 
 @router.post("/sheets/{sheet_id}/assign", status_code=status.HTTP_201_CREATED)
-def assign_sheet_to_students(sheet_id: int, payload: SheetAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def assign_sheet_to_students(sheet_id: int, payload: SheetAssignRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     sheet = db.get(QuizQuestionSheet, sheet_id)
     if sheet is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sheet not found")
@@ -161,13 +162,13 @@ def assign_sheet_to_students(sheet_id: int, payload: SheetAssignRequest, db: Ses
         notification_type="info",
         link_url="/quizzes",
     )
-    log_activity(db, admin.user_id, "admin", "assign_quiz_sheet", "quiz_question_sheets", sheet_id, f"Assigned to {added} student(s)")
+    log_activity(db, admin.user_id, admin.user.role.name, "assign_quiz_sheet", "quiz_question_sheets", sheet_id, f"Assigned to {added} student(s)")
     db.commit()
     return {"status": "assigned", "newly_assigned": added, "already_assigned": len(existing)}
 
 
 @router.get("/sheets/{sheet_id}/assignments", response_model=list[SheetAssignedStudentOut])
-def list_sheet_assignments(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_sheet_assignments(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     rows = (
         db.query(Student.id, Student.full_name, User.email)
         .join(QuizSheetAssignment, QuizSheetAssignment.student_id == Student.id)
@@ -179,7 +180,7 @@ def list_sheet_assignments(sheet_id: int, db: Session = Depends(get_db), admin: 
 
 
 @router.delete("/sheets/{sheet_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_question_sheet(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def delete_question_sheet(sheet_id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     sheet = db.get(QuizQuestionSheet, sheet_id)
     if sheet is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sheet not found")
@@ -199,7 +200,7 @@ def delete_question_sheet(sheet_id: int, db: Session = Depends(get_db), admin: A
     title = sheet.title
     db.query(QuizSheetAssignment).filter(QuizSheetAssignment.sheet_id == sheet_id).delete(synchronize_session=False)
     db.delete(sheet)
-    log_activity(db, admin.user_id, "admin", "delete_quiz_sheet", "quiz_question_sheets", sheet_id, title)
+    log_activity(db, admin.user_id, admin.user.role.name, "delete_quiz_sheet", "quiz_question_sheets", sheet_id, title)
     db.commit()
     return None
 
@@ -248,6 +249,7 @@ def submit_attempt(attempt_id: int, payload: QuizSubmitRequest, db: Session = De
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Attempt already submitted")
 
     quiz = db.get(Quiz, attempt.quiz_id)
+    authorize_enrollment(db, student, quiz.program_id)
     answers_map = {a.question_id: a.selected_option for a in payload.answers}
     grade_attempt(db, attempt, quiz, answers_map)
     db.commit()
@@ -264,7 +266,7 @@ def my_attempts(quiz_id: int | None = None, db: Session = Depends(get_db), stude
 
 
 @router.get("/attempts", response_model=list[QuizAttemptResultOut])
-def list_attempts(quiz_id: int | None = None, student_id: int | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+def list_attempts(quiz_id: int | None = None, student_id: int | None = None, db: Session = Depends(get_db), admin: Admin = Depends(get_current_staff)):
     query = db.query(QuizAttempt)
     if quiz_id:
         query = query.filter(QuizAttempt.quiz_id == quiz_id)

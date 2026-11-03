@@ -30,6 +30,9 @@ class ActivityLog(Base):
     __tablename__ = "activity_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    old_value: Mapped[dict | None] = mapped_column(JSONB)
+    new_value: Mapped[dict | None] = mapped_column(JSONB)
+    reason: Mapped[str | None] = mapped_column(Text)
     actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     actor_role: Mapped[str | None] = mapped_column(String(20))
     action: Mapped[str] = mapped_column(String(100), nullable=False)

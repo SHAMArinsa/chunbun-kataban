@@ -214,6 +214,8 @@ class CodingAssignmentAssignment(Base):
     __tablename__ = "coding_assignment_assignments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    enrollment_id: Mapped[int | None] = mapped_column(ForeignKey("program_enrollments.id"), index=True)
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     coding_assignment_id: Mapped[int] = mapped_column(ForeignKey("coding_assignments.id"), nullable=False)
     assignment_scope: Mapped[str] = mapped_column(Enum(*ASSIGNMENT_SCOPES, name="coding_assignment_scope"), nullable=False)
     student_id: Mapped[int | None] = mapped_column(ForeignKey("students.id"))
@@ -249,6 +251,8 @@ class AssignmentSubmission(Base):
     __tablename__ = "assignment_submissions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    enrollment_id: Mapped[int | None] = mapped_column(ForeignKey("program_enrollments.id"), index=True)
+    coding_assignment_assignment_id: Mapped[int | None] = mapped_column(ForeignKey("coding_assignment_assignments.id"))
     coding_assignment_id: Mapped[int] = mapped_column(ForeignKey("coding_assignments.id"), nullable=False)
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
