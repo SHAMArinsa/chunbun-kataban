@@ -9,6 +9,19 @@ function isAlreadyPaidError(err) {
   return err.response?.status === 409 && /already paid/i.test(err.response?.data?.detail || '')
 }
 
+// If the verify call times out or errors after Razorpay already took the money, ask the server
+// whether this payment is now marked paid (by verify or the webhook) before showing an error.
+async function confirmPaidOnServer(paymentId, tries = 6) {
+  for (let i = 0; i < tries; i += 1) {
+    try {
+      const { data } = await apiClient.get('/payments/me')
+      if (data?.some((p) => p.id === paymentId && p.status === 'paid')) return true
+    } catch { /* keep trying */ }
+    await new Promise((r) => setTimeout(r, 2500))
+  }
+  return false
+}
+
 function loadRazorpayScript() {
   return new Promise((resolve, reject) => {
     if (window.Razorpay) {
@@ -49,14 +62,15 @@ export default function RazorpayPayment({ paymentId, studentName, studentEmail, 
         name: 'ARINSA AI MINDS',
         description: 'Internship Program Enrollment',
         prefill: { name: studentName, email: studentEmail },
-        theme: { color: '#6366f1' },
+        theme: { color: '#2583d8' },
         handler: async (response) => {
+          paymentCompleted = true // money is captured; never treat a later dismiss as a cancellation
           try {
             const { data: payment } = await apiClient.post(`/payments/${paymentId}/razorpay/verify`, {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-            })
+            }, { timeout: 60000 })
             paymentCompleted = true
             onSuccess(payment)
           } catch (err) {
@@ -68,7 +82,13 @@ export default function RazorpayPayment({ paymentId, studentName, studentEmail, 
               onSuccess({ id: paymentId, status: 'paid' })
               return
             }
-            setError(err.response?.data?.detail || 'Payment verification failed')
+            if (await confirmPaidOnServer(paymentId)) {
+              paymentCompleted = true
+              onSuccess({ id: paymentId, status: 'paid' })
+              return
+            }
+            setError(err.response?.data?.detail || 'We received your payment but could not confirm it yet. Please refresh in a minute or sign in — your enrollment will appear on your dashboard. Contact recruitment@arinsaaiminds.com if it does not.')
+            setLoading(false)
             onError?.(err)
           }
         },

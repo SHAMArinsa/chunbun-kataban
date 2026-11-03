@@ -14,9 +14,15 @@ export function AuthProvider({ children }) {
   // session out. This ref makes the actual refresh run at most once per mount.
   const didInitialRefresh = useRef(false)
 
+  // Only wipe cached queries when a session actually ends. Clearing on the initial
+  // (anonymous) refresh failure would orphan in-flight public queries such as the
+  // program catalogue, leaving those pages stuck on a spinner.
+  const hadUser = useRef(false)
   const clearAuth = useCallback(() => {
     setAccessToken(null)
     setUser(null)
+    if (!hadUser.current) return
+    hadUser.current = false
     // Prevents a just-logged-in user from briefly seeing the previous session's
     // cached React Query data (e.g. enrollments) before their own data loads.
     queryClient.clear()
@@ -29,6 +35,7 @@ export function AuthProvider({ children }) {
   const loadMe = useCallback(async () => {
     try {
       const { data } = await apiClient.get('/auth/me')
+      hadUser.current = true
       setUser(data)
     } catch {
       clearAuth()

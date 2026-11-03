@@ -1,0 +1,30 @@
+.ab-hero h1{max-width:900px}
+.ab-quote{margin:26px 0 0;padding-left:20px;border-left:4px solid #2583d8;font:500 clamp(20px,2vw,26px)/1.4 'Jost',sans-serif;color:#31475f}.ab-quote b{color:#0b2e59}
+.ab-pillars{display:grid;gap:22px;max-width:1100px;margin:0 auto}
+.ab-pillars article{display:grid;grid-template-columns:110px 1fr;gap:26px;padding:34px;border-radius:16px;background:#f5f9fe;border:1px solid #d8e7f5;transition:.25s}
+.ab-pillars article:hover{border-color:#a9cff5;box-shadow:0 18px 40px rgba(18,84,166,.1)}
+.ab-pillars article.flag{background:linear-gradient(135deg,#e8f3ff,#d3e7fc);border-color:#2583d8}
+.ab-num{display:flex;flex-direction:column;align-items:center;gap:10px}
+.ab-num span{display:grid;place-items:center;width:64px;height:64px;border-radius:16px;background:#1254a6;color:#fff}.ab-num svg{width:30px}
+.ab-num i{font:700 30px 'Jost',sans-serif;font-style:normal;color:#a9cff5}
+.ab-pillars h2{margin:0;font:700 clamp(24px,2.4vw,32px) 'Jost',sans-serif;color:#0b2e59}
+.ab-lead{margin:8px 0 0;font:600 18px/1.45 'Jost',sans-serif;color:#1254a6}
+.ab-pillars p:not(.ab-lead){margin:10px 0 0;font-size:16.5px;line-height:1.65;color:#4a5f75}
+.ab-flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:18px}
+.ab-flow span{display:inline-flex;align-items:center;gap:8px}.ab-flow svg{width:15px;color:#2583d8}
+.ab-flow b{padding:7px 14px;border-radius:20px;background:#fff;border:1px solid #d8e7f5;font:600 13.5px 'Jost',sans-serif;letter-spacing:.6px;text-transform:uppercase;color:#1254a6}
+.ab-durs{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.ab-durs a{display:flex;flex-direction:column;padding:10px 16px;border-radius:10px;background:#fff;border:1px solid #d8e7f5;text-decoration:none;transition:.2s}.ab-durs a:hover{border-color:#1254a6}
+.ab-durs b{font:600 15px 'Jost',sans-serif;color:#0b2e59}.ab-durs small{font-size:13px;color:#2583d8}
+.ab-approach{text-align:center}
+.ab-approach h2{margin:10px 0 14px;font:600 clamp(30px,3.2vw,46px)/1.15 'Jost',sans-serif;color:#fff}.ab-approach h2 span{display:block;color:#8ec9ff}
+.ab-approach>p{margin:10px auto 0;max-width:760px;font-size:17px;line-height:1.6;color:#cfe0f3}
+.ab-fields{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:26px auto}
+.ab-fields span{padding:9px 16px;border-radius:24px;background:#ffffff14;border:1px solid #ffffff33;font:500 15px 'Jost',sans-serif;color:#fff}
+.ab-approach .ab-big{font:500 clamp(20px,2vw,26px)/1.45 'Jost',sans-serif;color:#dbe9f8}.ab-big b{color:#fff}
+.ab-values{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
+.ab-values article{padding:32px;border-radius:16px;background:#fff;border:1px solid #d8e7f5;text-align:center}
+.ab-values span{display:inline-grid;place-items:center;width:62px;height:62px;border-radius:50%;background:#e8f3ff;color:#1254a6}.ab-values svg{width:28px}
+.ab-values h3{margin:16px 0 8px;font:700 15px 'Jost',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#0b2e59}.ab-values p{margin:0;font-size:16.5px;line-height:1.55;color:#60758a}
+.ab-final-p{margin:0 auto;max-width:720px;font-size:18px;line-height:1.6;color:#d6e6f7}.ab-final-p b{color:#fff}
+@media(max-width:760px){.ab-pillars article{grid-template-columns:1fr;padding:24px}.ab-num{flex-direction:row}.ab-values{grid-template-columns:1fr}}

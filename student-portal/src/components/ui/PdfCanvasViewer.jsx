@@ -1,9 +1,10 @@
+import '../../lib/mapPolyfill'
 import { useEffect, useRef, useState } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 // Vite's `?worker` import gives back a ready-to-use Worker constructor with module semantics
 // already resolved for dev and prod builds — pdfjs's own `.mjs` worker needs `{ type: "module" }`,
 // which a plain `workerSrc = <url>` string assignment does not reliably get right under Vite.
-import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
+import PdfWorker from '../../lib/pdfWorker.js?worker'
 import Spinner from './Spinner'
 import { FileWarning } from 'lucide-react'
 import useKeyboardOnlyScroll from '../../hooks/useKeyboardOnlyScroll'
@@ -130,21 +131,21 @@ export default function PdfCanvasViewer({ url, fileName, className = '' }) {
         aria-label={fileName}
         tabIndex={0}
         role="document"
-        className={`select-none overflow-y-auto rounded-lg border border-slate-200 bg-[#f5f6f8] p-2 sm:p-3 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${state.loading || state.error ? 'invisible' : ''}`}
+        className={`select-none overflow-y-auto rounded-lg border border-slate-200 bg-[#f5f6f8] p-2 sm:p-3 outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${state.loading || state.error ? 'invisible' : ''}`}
         style={fullscreenActive ? { height: 'calc(100dvh - 5.5rem)', pointerEvents: 'none' } : { maxHeight: '70vh', pointerEvents: 'none' }}
       />
       {!state.loading && !state.error && (
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg border border-indigo-300 bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-950/30">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg border border-brand-300 bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-lg shadow-brand-950/30">
           {fullscreenActive ? (
             <>
-              <span className="text-indigo-200">Navigate with:</span>
-              <kbd className="rounded border border-indigo-300/70 bg-indigo-700 px-1.5 py-0.5 text-xs text-white">↑</kbd>
-              <kbd className="rounded border border-indigo-300/70 bg-indigo-700 px-1.5 py-0.5 text-xs text-white">↓</kbd>
-              <kbd className="rounded border border-indigo-300/70 bg-indigo-700 px-1.5 py-0.5 text-xs text-white">←</kbd>
-              <kbd className="rounded border border-indigo-300/70 bg-indigo-700 px-1.5 py-0.5 text-xs text-white">→</kbd>
-              <span className="text-indigo-200">· Press</span>
-              <kbd className="rounded border border-lime-300 bg-lime-400 px-1.5 py-0.5 text-xs font-extrabold text-slate-950">Esc</kbd>
-              <span className="text-indigo-100">to exit fullscreen</span>
+              <span className="text-brand-200">Navigate with:</span>
+              <kbd className="rounded border border-brand-300/70 bg-brand-700 px-1.5 py-0.5 text-xs text-white">↑</kbd>
+              <kbd className="rounded border border-brand-300/70 bg-brand-700 px-1.5 py-0.5 text-xs text-white">↓</kbd>
+              <kbd className="rounded border border-brand-300/70 bg-brand-700 px-1.5 py-0.5 text-xs text-white">←</kbd>
+              <kbd className="rounded border border-brand-300/70 bg-brand-700 px-1.5 py-0.5 text-xs text-white">→</kbd>
+              <span className="text-brand-200">· Press</span>
+              <kbd className="rounded border border-sky-300 bg-sky-400 px-1.5 py-0.5 text-xs font-extrabold text-slate-950">Esc</kbd>
+              <span className="text-brand-100">to exit fullscreen</span>
             </>
           ) : (
             <span>Use ↑ / ↓ / Page Up / Page Down / Home / End to scroll. Mouse interaction is disabled on protected content.</span>

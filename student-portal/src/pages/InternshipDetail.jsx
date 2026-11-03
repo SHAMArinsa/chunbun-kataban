@@ -1,29 +1,102 @@
-import { ArrowRight, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, BookOpen, Briefcase, CheckCircle2, ChevronDown, GraduationCap, Laptop, Clock, Sparkles, Target, UserRound, Palette } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '../api/client'
 import Spinner from '../components/ui/Spinner'
-import { hasActiveOffer, offerExpiryLabel, priceLabel } from '../utils/programOffers'
+import { PROGRAM_DETAILS } from '../content/programDetails'
+import { feeNote, hasActiveOffer, offerExpiryLabel, priceLabel } from '../utils/programOffers'
 import './InternshipDetail.css'
 
-const info = {
-  basic: { name: 'Basic Internship', weeks: '2 WEEKS', regular: '₹3,499 / USD 80', offer: '₹1,999 + GST / USD 55', intro: 'Build a strong programming foundation through guided learning, practical assessments, and a real-world mini project.', metrics: [['WEEK 1', 'Learning & practice'], ['WEEK 2', 'Build your first project']], phases: [['Week 1 — Learn & Practice', ['Build a strong foundation through structured learning modules, guided exercises, coding practice, and technical assessments.', 'Python fundamentals, Flask basics, HTML, debugging, testing, and core development workflow.']], ['Week 2 — Build Your First Project', ['Develop a real-world web application while following an industry-inspired development workflow.', 'Receive mentor review, final performance evaluation, and completion certificates.']]] },
-  professional: { name: 'Professional Internship', weeks: '4 WEEKS', regular: '₹7,999 / USD 180', offer: '₹4,999 + GST / USD 125', intro: 'Take your programming knowledge to the next level with advanced technical training, hands-on project development, and practical experience following professional software engineering practices.', metrics: [['WEEK 1', 'Advanced learning & technical evaluation'], ['WEEKS 2–4', 'Build an industry-grade application']], phases: [['Week 1 — Advanced Learning & Technical Evaluation', ['Strengthen your programming expertise through structured learning, practical coding exercises, technical assessments, and industry-oriented problem-solving.']], ['Weeks 2–4 — Build an Industry-Grade Application', ['Develop a complete web application from concept to deployment using modern technologies, backend development, databases, and real-world development workflows.']]] },
-  premium: { name: 'Premium Internship', weeks: '6 WEEKS', regular: '₹14,999 / USD 380', offer: '₹9,999 + GST / USD 260', intro: 'Go beyond learning. Gain real product development experience, work alongside the ARINSA AI MINDS engineering team, and prepare yourself for software development and AI careers through an industry-focused internship designed to bridge the gap between education and employment.', metrics: [['WEEK 1', 'Advanced technical learning'], ['WEEKS 2–3', 'Industry product development'], ['WEEKS 4–6', 'Career preparation & team experience']], phases: [['Week 1 — Advanced Technical Learning', ['Strengthen your expertise with advanced software engineering, AI, backend development, databases, and modern application architecture while completing practical technical evaluations.']], ['Weeks 2–3 — Industry Product Development', ['Work on production-grade projects using professional development practices, collaborating on features that reflect real business requirements and modern software workflows.']], ['Weeks 4–6 — Career Preparation & Team Experience', ['Gain experience working with the ARINSA AI MINDS development team through code reviews, collaborative development, project discussions, and industry-standard engineering practices.']]] }
-}
-
-const highlights = [['01', 'Learn the essentials.', 'Structured technical learning that builds real confidence.'], ['02', 'Build a real project.', 'Practical work you can explain and add to your portfolio.'], ['03', 'Get reviewed.', 'Assessment, mentor feedback, and a completion certificate.']]
-const basicDetails = { why: [['Learn Industry Fundamentals', 'Gain practical knowledge of Python, Flask, HTML, and core web development concepts through structured, self-paced learning designed for beginners.'], ['Build a Real Project', 'Transform your learning into experience by creating a complete web application that demonstrates your technical skills and problem-solving ability.'], ['Receive Professional Evaluation', 'Your project and technical performance will be reviewed, helping you understand your strengths and areas for improvement while preparing you for future opportunities.']], learn: ['Python programming fundamentals', 'Flask web application development', 'HTML and basic front-end concepts', 'Problem-solving and coding best practices', 'Software development workflow', 'Project organization and documentation', 'Version control fundamentals', 'Debugging and testing techniques'], receive: ['Structured learning materials', 'Hands-on coding exercises', 'Practical project experience', 'Technical assessments', 'Project review and performance evaluation', 'Professional feedback', 'Internship Completion Certificate', 'Project Completion Certificate'], graduate: ['Strong programming fundamentals', 'A real-world project for your portfolio', 'Practical software development experience', 'Improved coding and problem-solving skills', 'Industry-ready learning experience', 'Certificates validating your successful completion'] }
-const professionalDetails = { why: [['Learn Advanced Technologies', 'Master Python, Flask, HTML, CSS, PostgreSQL, and essential software engineering concepts while building a deeper understanding of modern application development.'], ['Build an End-to-End Project', 'Design, develop, and deliver a complete industry-style application that showcases your technical abilities and strengthens your professional portfolio.'], ['Experience Professional Development', 'Work through the complete software development lifecycle, receive technical guidance, participate in project reviews, and gain valuable feedback from experienced professionals.']], learn: ['Advanced Python programming', 'Flask application development', 'HTML & CSS for responsive interfaces', 'PostgreSQL database design and integration', 'REST API development', 'Authentication and user management', 'Software architecture fundamentals', 'Debugging, testing, and deployment basics', 'Version control and collaborative development', 'Introduction to Machine Learning concepts'], receive: ['Comprehensive learning resources', 'Advanced coding exercises', 'Industry-oriented technical assessments', 'End-to-end application development experience', 'Technical reviews and professional feedback', 'Performance evaluation report', 'Internship Completion Certificate', 'Project Completion Certificate'], graduate: ['Industry-ready software development skills', 'A complete portfolio-quality application', 'Backend, database, and API development experience', 'Strong understanding of professional development workflows', 'Enhanced problem-solving and coding abilities', 'Recognized certificates demonstrating your technical achievements'] }
-const premiumDetails = { why: [['Career-Focused Learning', 'Master advanced software development, Artificial Intelligence, Machine Learning, Large Language Models (LLMs), Prompt Engineering, databases, APIs, cloud-ready development, and professional engineering workflows.'], ['Work on Real Products', 'Contribute to real development projects and experience how software products are designed, developed, tested, and maintained in a professional environment.'], ['Learn Like an Industry Professional', 'Experience collaborative development, Git-based workflows, sprint planning, technical reviews, documentation, debugging, testing, deployment, and modern software engineering best practices.']], learn: ['Advanced Python Development', 'Backend Engineering with Flask & APIs', 'Database Design & Integration', 'Artificial Intelligence & Machine Learning Fundamentals', 'Deep Learning Concepts', 'Large Language Models (LLMs)', 'Prompt Engineering', 'AI Application Development', 'Git & Collaborative Development', 'Software Architecture & System Design', 'Testing, Debugging & Deployment', 'Professional Software Development Lifecycle'], receive: ['Advanced technical learning resources', 'Hands-on product development experience', 'Experience working on real-world projects', 'Professional code reviews', 'Technical mentorship and guidance', 'Career development support', 'Personalized performance evaluation', 'Internship Completion Certificate', 'Project Completion Certificate', 'Experience Certificate (for eligible participants)'], graduate: ['Real-world software development experience', 'Industry-level AI and full-stack development skills', 'Production project experience', 'A stronger portfolio and GitHub profile', 'Improved interview readiness', 'Professional engineering workflow experience', 'Enhanced career opportunities in software and AI development'], career: ['Resume and portfolio improvement', 'LinkedIn profile optimization', 'GitHub profile enhancement', 'Technical interview preparation', 'Coding interview guidance', 'Career mentoring sessions', 'Professional performance evaluation', 'Personalized improvement recommendations', 'Industry best practices and workplace readiness'] }
+const AUDIENCE_ICONS = { students: GraduationCap, pros: Briefcase, noncs: Palette }
+const PREREQ_ICONS = [BookOpen, Laptop, Clock]
 
 export default function InternshipDetail({ program }) {
-  const { data: programs, isLoading } = useQuery({ queryKey: ['public-programs'], queryFn: () => apiClient.get('/public/programs').then((response) => response.data) })
+  const { data: programs, isLoading } = useQuery({ queryKey: ['public-programs'], queryFn: () => apiClient.get('/public/programs').then((r) => r.data) })
   if (isLoading) return <Spinner />
-  const liveProgram = programs?.find((item) => item.code === program)
-  const p = { ...info[program], name: liveProgram?.name ?? info[program].name, weeks: liveProgram ? `${liveProgram.duration_weeks} WEEKS` : info[program].weeks }
-  const offerActive = hasActiveOffer(liveProgram)
-  const details = program === 'premium' ? premiumDetails : program === 'professional' ? professionalDetails : basicDetails
-  const showDetails = program === 'basic' || program === 'professional' || program === 'premium'
-  return <main className="internship-detail"><section className="internship-hero"><div><p>{p.weeks} · ARINSA INTERNSHIP</p><h1>{p.name.split(' ')[0]}<br /><em>{p.name.replace(p.name.split(' ')[0], '').trim()}.</em></h1><p>{p.intro}</p><div className="internship-price">{offerActive ? <><span><small>REGULAR PRICE</small>{priceLabel(liveProgram.price_inr, liveProgram.price_usd)}</span><strong><small>LIMITED-TIME OFFER</small>{priceLabel(liveProgram.offer_price_inr, liveProgram.offer_price_usd, true)}<em>{offerExpiryLabel(liveProgram)}</em></strong></> : <strong><small>PRICE</small>{priceLabel(liveProgram?.price_inr, liveProgram?.price_usd)}</strong>}</div><Link to="/signup">Apply now <ArrowRight /></Link></div><aside>{p.metrics.map(([value, label]) => <div key={value}><b>{value}</b><span>{label}</span></div>)}</aside></section><section className="internship-points">{highlights.map(([number, title, text]) => <article key={number}><span>{number}</span><h2>{title}</h2><p>{text}</p></article>)}</section><section className="internship-phases">{p.phases.map(([title, items], i) => <article key={title}><span>0{i + 1}</span><h2>{title}</h2><ul>{items.map(item => <li key={item}><CheckCircle2 />{item}</li>)}</ul></article>)}</section>{showDetails && <><section className="basic-why"><div><p>WHY CHOOSE THIS INTERNSHIP</p><h2>{program === 'professional' ? <>Build industry-ready<br /><em>skills.</em></> : <>Start with the right<br /><em>foundation.</em></>}</h2></div><div className="basic-why-grid">{details.why.map(([title, text], index) => <article key={title}><span>0{index + 1}</span><h3>{title}</h3><p>{text}</p></article>)}</div></section><section className="basic-benefits">{[['What you’ll learn', details.learn], ['What you’ll receive', details.receive], ['Graduate with', details.graduate]].map(([title, items]) => <article key={title}><h2>{title}</h2><ul>{items.map(item => <li key={item}><CheckCircle2 />{item}</li>)}</ul></article>)}</section></>}<section className="internship-outcomes"><h2>What you’ll leave with</h2><p>Practical skills, project experience, mentor feedback, performance evaluation, and an Internship Completion Certificate.</p></section></main>
+  const d = PROGRAM_DETAILS[program]
+  const live = programs?.find((item) => item.code === program)
+  const offerActive = hasActiveOffer(live)
+  const flagship = program === 'career_accelerator'
+  const others = Object.entries(PROGRAM_DETAILS).filter(([code]) => code !== program)
+
+  return (
+    <main className={`pd ${flagship ? 'pd-flag' : ''}`}>
+      {/* Hero */}
+      <section className="pd-hero">
+        <div className="pd-hero-copy">
+          <p className="pd-kicker">{d.kicker}</p>
+          <h1>{d.headline[0]}<span>{d.headline[1]}</span></h1>
+          <p className="pd-intro">{d.intro}</p>
+          {live && <div className="pd-price">
+            {offerActive ? <>
+              <span className="pd-old"><small>REGULAR PRICE</small>{priceLabel(live.price_inr, live.price_usd)}</span>
+              <strong><small>LIMITED-TIME OFFER</small>{priceLabel(live.offer_price_inr, live.offer_price_usd)}<em>{offerExpiryLabel(live)}</em></strong>
+            </> : <strong><small>PROGRAMME FEE</small>{priceLabel(live?.price_inr, live?.price_usd)}</strong>}
+            <div className="pd-fee">{feeNote(live).split(' | ').map((t) => <span key={t}>{t}</span>)}</div>
+          </div>}
+          <div className="pd-actions">
+            <Link className="pd-btn" to={`/signup?program=${program}`}>Apply for {d.name} <ArrowRight /></Link>
+            <Link className="pd-btn ghost" to={`/programs/compare?p=${program}`}>Compare programmes</Link>
+          </div>
+        </div>
+        <aside className="pd-facts">
+          <p>{d.name.toUpperCase()}</p>
+          {d.facts.map(([v, l]) => <div key={l}><b>{v}</b><span>{l}</span></div>)}
+        </aside>
+      </section>
+
+      {/* Who is it for */}
+      <section className="pd-sec">
+        <div className="pd-head"><p className="pd-label">IS THIS RIGHT FOR YOU?</p><h2>Who this programme is for</h2></div>
+        <div className="pd-aud">
+          {d.audiences.map(([key, title, text]) => { const Icon = AUDIENCE_ICONS[key]; return <article key={key}><span><Icon /></span><h3>{title}</h3><p>{text}</p></article> })}
+        </div>
+      </section>
+
+      {/* Before you start */}
+      <section className="pd-sec pd-soft">
+        <div className="pd-head"><p className="pd-label">BEFORE YOU START</p><h2>What you need</h2></div>
+        <div className="pd-pre">{d.prerequisites.map(([t, s], i) => { const Icon = PREREQ_ICONS[i]; return <div key={t}><Icon /><b>{t}</b><span>{s}</span></div> })}</div>
+      </section>
+
+      {/* How it works */}
+      <section className="pd-sec">
+        <div className="pd-head"><p className="pd-label">HOW IT WORKS</p><h2>Your experience, stage by stage</h2></div>
+        <ol className={`pd-stages n${d.stages.length}`}>
+          {d.stages.map(([t, s], i) => <li key={t}><i>{String(i + 1).padStart(2, '0')}</i><h3>{t}</h3><p>{s}</p></li>)}
+        </ol>
+      </section>
+
+      {/* Topics + included + outcomes */}
+      <section className="pd-sec pd-soft">
+        <div className="pd-grid3">
+          <article><Sparkles /><h3>What you’ll work with</h3><div className="pd-chips">{d.topics.map((t) => <span key={t}>{t}</span>)}</div></article>
+          <article><CheckCircle2 /><h3>What’s included</h3><ul>{d.included.map((x) => <li key={x}><CheckCircle2 />{x}</li>)}</ul></article>
+          <article className="pd-out"><Target /><h3>What you leave with</h3><ul>{d.outcomes.map((x) => <li key={x}><CheckCircle2 />{x}</li>)}</ul></article>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="pd-sec">
+        <div className="pd-head"><p className="pd-label">COMMON QUESTIONS</p><h2>Good to know</h2></div>
+        <div className="pd-faq">{d.faqs.map(([q, a]) => <details key={q}><summary>{q}<ChevronDown /></summary><p>{a}</p></details>)}</div>
+      </section>
+
+      {/* CTA */}
+      <section className="pd-cta">
+        <UserRound />
+        <h2>Ready to start the {d.name}?</h2>
+        <p>Apply online in a few minutes. Your Welcome Certificate and invoice are issued as soon as your enrolment is confirmed.</p>
+        <div className="pd-actions center"><Link className="pd-btn light" to={`/signup?program=${program}`}>Apply now <ArrowRight /></Link><Link className="pd-btn ghost-light" to={`/programs/compare?p=${program}`}>Compare programmes</Link></div>
+        {d.note && <small>{d.note}</small>}
+      </section>
+
+      {/* Other programmes */}
+      <section className="pd-sec pd-others">
+        <h3>Other ARINSA programmes</h3>
+        <div>{others.map(([code, o]) => <Link key={code} to={`/programs/${code}`}><b>{o.name}</b><span>{o.facts[0][0]}</span><ArrowRight /></Link>)}</div>
+        <p className="pd-indep">Each programme is independent — choose the one that fits your goals.</p>
+      </section>
+    </main>
+  )
 }

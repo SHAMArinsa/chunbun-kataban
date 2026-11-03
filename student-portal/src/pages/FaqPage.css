@@ -1,0 +1,18 @@
+.faq-hero{text-align:center}.faq-hero .cu-kicker{display:inline-flex;align-items:center;gap:8px}.faq-hero .cu-kicker svg{width:18px}
+.faq-hero h1,.faq-hero .cu-lead{margin-left:auto;margin-right:auto}
+.faq-search{display:flex;align-items:center;gap:12px;max-width:640px;margin:28px auto 0;padding:6px 8px 6px 18px;border-radius:12px;background:#fff;border:2px solid #d8e7f5;box-shadow:0 14px 30px rgba(11,46,89,.08)}
+.faq-search:focus-within{border-color:#2583d8}.faq-search svg{flex:none;width:22px;color:#2583d8}
+.faq-search input{flex:1;border:0;outline:0;padding:12px 0;font:400 17px 'Jost',sans-serif;color:#142a43;background:none}
+.faq-cats{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:20px}
+.faq-cats button{padding:8px 16px;border-radius:24px;border:1px solid #d8e7f5;background:#fff;color:#1254a6;font:500 14.5px 'Jost',sans-serif;cursor:pointer}
+.faq-cats button.on,.faq-cats button:hover{background:#1254a6;color:#fff;border-color:#1254a6}
+.faq-wrap{max-width:960px;margin:0 auto}
+.faq-group+.faq-group{margin-top:44px}
+.faq-group h2{margin:0 0 16px;padding-left:14px;border-left:4px solid #2583d8;font:600 24px 'Jost',sans-serif;color:#0b2e59}
+.faq .cu-faq{max-width:none}.faq .cu-faq p{padding-left:24px}
+.faq-empty{padding:40px;text-align:center;border-radius:14px;background:#f5f9fe;border:1px dashed #a9cff5}.faq-empty b{font-size:18px;color:#0b2e59}.faq-empty p{color:#60758a}
+.faq-contact{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;padding:36px 40px;border-radius:18px;background:linear-gradient(120deg,#0b2e59,#1254a6);color:#fff}
+.faq-contact h2{margin:0;font:700 28px 'Jost',sans-serif}.faq-contact p{margin:6px 0 0;color:#cfe0f3}
+.faq-ways{display:flex;flex-wrap:wrap;gap:10px}
+.faq-ways a{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:6px;background:#ffffff1a;border:1px solid #ffffff38;color:#fff;font:500 15px 'Jost',sans-serif;text-decoration:none}.faq-ways a:hover{background:#fff;color:#1254a6}.faq-ways svg{width:18px}
+.faq-note{max-width:1100px;margin:18px auto 0;font-size:13.5px;color:#60758a}.faq-note a{color:#1254a6;font-weight:600}

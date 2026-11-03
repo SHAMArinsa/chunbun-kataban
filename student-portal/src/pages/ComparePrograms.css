@@ -1,0 +1,46 @@
+.cmp{background:#f5f9fe;font-family:'Jost',system-ui,sans-serif;color:#142a43;padding-bottom:80px}
+.cmp-hero{padding:70px 6% 30px;text-align:center}
+.cmp-hero>p{display:inline-flex;align-items:center;gap:8px;margin:0;font:700 13px 'Jost',sans-serif;letter-spacing:2px;color:#2583d8}.cmp-hero>p svg{width:18px}
+.cmp-hero h1{margin:10px 0 10px;font:700 clamp(32px,3.8vw,52px)/1.1 'Jost',sans-serif;color:#0b2e59}.cmp-hero h1 span{color:#1254a6}
+.cmp-hero>span{font-size:17px;color:#60758a}
+.cmp-picker{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;padding:0 6% 10px}
+.cmp-picker>button{display:flex;align-items:center;gap:12px;padding:12px 18px 12px 12px;border-radius:12px;background:#fff;border:2px solid #d8e7f5;cursor:pointer;text-align:left;font-family:inherit;transition:.2s}
+.cmp-picker>button:hover{border-color:#a9cff5}
+.cmp-picker>button i{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:#e8f3ff;color:#1254a6}.cmp-picker>button i svg{width:18px}
+.cmp-picker>button b{display:block;font-size:15px;color:#0b2e59}.cmp-picker>button small{font-size:12.5px;color:#60758a}
+.cmp-picker>button.on{border-color:#1254a6;background:#e8f3ff;box-shadow:0 8px 20px rgba(18,84,166,.14)}
+.cmp-picker>button.on i{background:#1254a6;color:#fff}
+.cmp-picker>button:disabled{cursor:default}
+.cmp-quick{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;width:100%;margin-top:8px;font-size:14px;color:#60758a}
+.cmp-quick button{padding:6px 12px;border-radius:20px;border:1px solid #d8e7f5;background:#fff;color:#1254a6;font:500 13.5px 'Jost',sans-serif;cursor:pointer}.cmp-quick button:hover{background:#1254a6;color:#fff;border-color:#1254a6}
+.cmp-wrap{margin:30px 6% 0;overflow-x:auto;border-radius:16px;border:1px solid #d8e7f5;background:#fff;box-shadow:0 20px 50px rgba(11,46,89,.08)}
+.cmp-table{width:100%;min-width:640px;border-collapse:separate;border-spacing:0}
+.cmp-table th,.cmp-table td{padding:16px 18px;border-bottom:1px solid #edf3fa;vertical-align:middle;text-align:center}
+.cmp-table thead th{position:sticky;top:0;z-index:2;background:#fff;vertical-align:top;padding:24px 18px;border-bottom:2px solid #d8e7f5}
+.cmp-rowhead{text-align:left!important;width:22%;vertical-align:bottom!important}.cmp-rowhead span{font:600 13px 'Jost',sans-serif;color:#60758a}
+.cmp-table thead th{position:relative}
+.cmp-table thead small{display:block;font:700 11px 'Jost',sans-serif;letter-spacing:1.4px;color:#2583d8}
+.cmp-table thead h2{margin:6px 0 10px;font:700 20px/1.2 'Jost',sans-serif;color:#0b2e59}
+.cmp-price b{display:block;font:700 22px 'Jost',sans-serif;color:#1254a6}.cmp-price span{font-size:12px;color:#60758a}
+.cmp-btns{display:flex;justify-content:center;gap:8px;margin-top:14px}
+.cmp-apply,.cmp-more{display:inline-flex;align-items:center;gap:5px;padding:9px 14px;border-radius:4px;font:600 13px 'Jost',sans-serif;text-decoration:none;text-transform:uppercase;letter-spacing:.3px}
+.cmp-apply{background:#1254a6;color:#fff}.cmp-apply:hover{background:#2583d8}
+.cmp-more{color:#1254a6;border:1px solid #d8e7f5}.cmp-more:hover{border-color:#1254a6}.cmp-more svg{width:14px}
+.cmp-remove{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:50%;background:#f5f9fe;color:#60758a;cursor:pointer}.cmp-remove:hover{background:#e3e9f0;color:#0b2e59}.cmp-remove svg{width:14px}
+.cmp-badge{position:absolute;top:-1px;left:50%;transform:translateX(-50%);padding:3px 10px;border-radius:0 0 8px 8px;background:#1254a6;color:#fff;font:700 10px 'Jost',sans-serif;font-style:normal;letter-spacing:1.4px}
+.cmp-table th.flag,.cmp-table td.flag{background:#f2f8ff}
+.cmp-table thead th.flag{background:linear-gradient(180deg,#e8f3ff,#f2f8ff)}
+.cmp-table tbody th{text-align:left;font:600 15px 'Jost',sans-serif;color:#0b2e59;background:#fbfdff}
+.cmp-table tbody tr.diff th{box-shadow:inset 4px 0 0 #2583d8}
+.cmp-table tbody tr.diff td{background:#f7fbff}.cmp-table tbody tr.diff td.flag{background:#eaf4ff}
+.cmp-table tbody tr:hover td,.cmp-table tbody tr:hover th{background:#eef6ff}
+.cmp-yes,.cmp-no{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%}
+.cmp-yes{background:#1254a6;color:#fff}.cmp-no{background:#edf3fa;color:#a9b8c8}
+.cmp-yes svg,.cmp-no svg{width:16px;stroke-width:3}
+.cmp-text{font-size:14.5px;line-height:1.4;color:#142a43}
+.cmp-foot{margin:22px 6% 0;font-size:13.5px;color:#60758a}.cmp-foot p{margin:6px 0}
+.cmp-legend{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:12px}.cmp-legend span{display:inline-flex;align-items:center;gap:8px}
+.cmp-legend .cmp-yes,.cmp-legend .cmp-no{width:22px;height:22px}.cmp-legend svg{width:13px}
+.cmp-swatch{display:inline-block;width:22px;height:16px;border-radius:3px;background:#f7fbff;box-shadow:inset 4px 0 0 #2583d8;border:1px solid #d8e7f5}
+.cmp-back{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font:600 15px 'Jost',sans-serif;color:#1254a6;text-decoration:none}.cmp-back svg{width:16px}
+@media(max-width:700px){.cmp-hero{padding:50px 5% 20px}.cmp-wrap{margin:24px 3% 0}.cmp-table th,.cmp-table td{padding:12px 10px}.cmp-table thead h2{font-size:16px}.cmp-price b{font-size:17px}.cmp-btns{flex-direction:column}}

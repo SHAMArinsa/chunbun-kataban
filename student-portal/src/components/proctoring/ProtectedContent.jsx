@@ -165,7 +165,7 @@ export default function ProtectedContent({
           <DynamicWatermark
             studentName={user?.full_name}
             studentEmail={user?.email}
-            studentId={user?.student_id}
+            studentId={user?.student_number ?? user?.student_id}
             sessionId={watermarkSessionCode ?? sessionId}
             nationalIdType={user?.national_id_type}
             nationalIdNumber={user?.national_id_number}

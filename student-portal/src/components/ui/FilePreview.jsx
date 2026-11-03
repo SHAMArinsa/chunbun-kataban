@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext'
 
 const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
 const SHEET_EXTS = ['xlsx', 'xls', 'csv']
+const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'm4v']
 
 function extOf(name) {
   return (name || '').toLowerCase().split('.').pop()
@@ -48,7 +49,7 @@ export default function FilePreview({
   // ProtectedContent wrapper, so consistent mouse lockout is expected everywhere here, not just
   // for PDFs. The 'pdf' kind handles this itself inside PdfCanvasViewer.
   useKeyboardOnlyScroll(scrollRef, {
-    enabled: !state.loading && !state.error && state.kind !== 'pdf',
+    enabled: !state.loading && !state.error && state.kind !== 'pdf' && state.kind !== 'video',
     lockWhenFullscreen: true,
   })
 
@@ -72,6 +73,13 @@ export default function FilePreview({
           const url = URL.createObjectURL(blob)
           objectUrlRef.current = url
           setState({ loading: false, error: null, kind: 'pdf', payload: url })
+          return
+        }
+
+        if (VIDEO_EXTS.includes(ext)) {
+          const url = URL.createObjectURL(blob)
+          objectUrlRef.current = url
+          setState({ loading: false, error: null, kind: 'video', payload: url })
           return
         }
 
@@ -161,6 +169,16 @@ export default function FilePreview({
     )
   }
 
+  if (state.kind === 'video') {
+    return (
+      <div className="relative">
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video src={state.payload} controls controlsList="nodownload noremoteplayback" disablePictureInPicture
+          onContextMenu={(e) => e.preventDefault()} className="max-h-[75vh] w-full rounded-lg bg-black" />
+      </div>
+    )
+  }
+
   if (state.kind === 'image') {
     return (
       <div className="relative">
@@ -169,7 +187,7 @@ export default function FilePreview({
           tabIndex={0}
           role="document"
           aria-label={fileName}
-          className={`overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${className}`}
+          className={`overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3 outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${className}`}
           style={{ pointerEvents: 'none' }}
           onContextMenu={(e) => e.preventDefault()}
         >
@@ -199,7 +217,7 @@ export default function FilePreview({
           tabIndex={0}
           role="document"
           aria-label={fileName}
-          className={`max-h-[70vh] select-none overflow-auto rounded-lg border border-slate-200 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${className}`}
+          className={`max-h-[70vh] select-none overflow-auto rounded-lg border border-slate-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${className}`}
           style={{ pointerEvents: 'none' }}
           onContextMenu={(e) => e.preventDefault()}
           onCopy={(e) => e.preventDefault()}
@@ -240,7 +258,7 @@ export default function FilePreview({
           tabIndex={0}
           role="document"
           aria-label={fileName}
-          className={`prose prose-sm max-h-[70vh] max-w-none select-none overflow-auto rounded-lg border border-slate-200 bg-white p-5 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${className}`}
+          className={`prose prose-sm max-h-[70vh] max-w-none select-none overflow-auto rounded-lg border border-slate-200 bg-white p-5 outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${className}`}
           style={{ pointerEvents: 'none' }}
           onContextMenu={(e) => e.preventDefault()}
           onCopy={(e) => e.preventDefault()}
@@ -261,7 +279,7 @@ export default function FilePreview({
           tabIndex={0}
           role="document"
           aria-label={fileName}
-          className={`max-h-[70vh] select-none overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${className}`}
+          className={`max-h-[70vh] select-none overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${className}`}
           style={{ pointerEvents: 'none' }}
           onContextMenu={(e) => e.preventDefault()}
           onCopy={(e) => e.preventDefault()}

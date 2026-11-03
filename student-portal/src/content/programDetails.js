@@ -1,0 +1,151 @@
+// Public programme-page content. Kept high-level on purpose: it explains who each programme suits and
+// what the experience is like, without exposing internal processes. Prices always come from the API.
+
+export const PROGRAM_DETAILS = {
+  basic: {
+    name: 'Basic Internship',
+    kicker: 'FOUNDATION PROGRAMME',
+    headline: ['Your first step into', 'practical tech.'],
+    intro: 'A short, guided internship for anyone who wants to try programming for real — learn the essentials, practise with assessments and build your first working web project.',
+    facts: [['2 Weeks', 'Duration'], ['Online · self-paced', 'Format'], ['Guided project', 'Practical work'], ['Certificates', 'Welcome + completion']],
+    audiences: [
+      ['students', 'College students', 'Great for 1st and 2nd year students who want a first internship, practical exposure and a certificate for their profile.'],
+      ['pros', 'Working professionals', 'A low-risk way to test whether programming suits you before committing to a longer programme.'],
+      ['noncs', 'Non-CS & non-science backgrounds', 'Designed for complete beginners. No coding experience needed — you start from the very basics.'],
+    ],
+    prerequisites: [['No prior coding needed', 'We start from first principles.'], ['A laptop or computer', 'Windows, macOS or Linux.'], ['About 1–2 hours a day', 'Flexible, at your own pace.']],
+    stages: [
+      ['Learn', 'Study structured materials on Python, Flask and HTML at your own pace.'],
+      ['Practise', 'Check your understanding with an online assessment.'],
+      ['Build', 'Create your first small web application by following a guided brief.'],
+      ['Get reviewed', 'Submit your project, receive feedback and earn your certificates.'],
+    ],
+    topics: ['Python fundamentals', 'Flask basics', 'HTML', 'Problem solving', 'Debugging', 'Project structure', 'Git basics'],
+    included: ['Structured learning materials', 'Online MCQ assessment', 'A guided mini project', 'Project review with feedback', 'Welcome Certificate', 'Completion Certificate with public Credential ID'],
+    outcomes: ['Confidence with programming fundamentals', 'Your first working web project', 'A verifiable certificate for your resume and LinkedIn'],
+    faqs: [
+      ['I have never written code. Can I join?', 'Yes. The Basic Internship is designed for complete beginners, including students from commerce, arts and other non-technical fields.'],
+      ['Do I need to attend live classes?', 'No. It is self-paced — you learn from the materials and complete the work on your own schedule within two weeks.'],
+      ['Will I get a certificate?', 'Yes. You receive a Welcome Certificate when you join and a Completion Certificate, with a public Credential ID, when you finish.'],
+    ],
+  },
+  professional: {
+    name: 'Professional Internship',
+    kicker: 'INDUSTRY PROJECT PROGRAMME',
+    headline: ['Build bigger,', 'industry-style projects.'],
+    intro: 'A focused 4-week internship for people who want more than the basics — go deeper into development with databases and APIs, and build larger projects you can confidently demonstrate.',
+    facts: [['4 Weeks', 'Duration'], ['Online · self-paced', 'Format'], ['Larger projects', 'Practical work'], ['Certificates', 'Welcome + completion']],
+    audiences: [
+      ['students', 'College students', 'Ideal for 2nd–4th year students preparing for internships or placements who need stronger projects to talk about in interviews.'],
+      ['pros', 'Working professionals', 'Useful for professionals in non-development roles who want hands-on experience with real application development.'],
+      ['noncs', 'Non-CS & non-science backgrounds', 'Possible with commitment. Comfort with basic computer use helps; the learning materials cover what you need to get started.'],
+    ],
+    prerequisites: [['Basic coding familiarity helps', 'Not mandatory — materials cover the essentials.'], ['A laptop or computer', 'Able to run Python and a database.'], ['About 2 hours a day', 'Flexible, at your own pace.']],
+    stages: [
+      ['Learn', 'Go deeper into Python, Flask, databases and web development.'],
+      ['Assess', 'Complete an online technical assessment.'],
+      ['Build', 'Develop larger, production-style projects.'],
+      ['Get reviewed', 'Receive professional feedback, an evaluation and your certificates.'],
+    ],
+    topics: ['Advanced Python', 'Flask', 'PostgreSQL', 'REST APIs', 'HTML & CSS', 'Authentication', 'Software architecture basics', 'Git'],
+    included: ['Comprehensive learning materials', 'Online technical assessment', 'Larger industry-style projects', 'Professional project reviews', 'Welcome Certificate', 'Completion Certificate with public Credential ID'],
+    outcomes: ['Backend, database and API experience', 'Two portfolio-ready projects', 'Stronger interview conversations', 'A verifiable certificate'],
+    faqs: [
+      ['Do I need to complete the Basic Internship first?', 'No. Each programme is independent. Choose Professional if you want larger projects and a deeper technical challenge.'],
+      ['What kind of projects will I build?', 'Industry-style web applications using backend development, databases and APIs — the kind of work you can show in a portfolio.'],
+      ['Is it suitable while studying or working?', 'Yes. It is self-paced, so you can fit it around college or work within the four weeks.'],
+    ],
+  },
+  advanced: {
+    name: 'Advanced Internship',
+    kicker: 'ASSIGNED-WORK INTERNSHIP',
+    headline: ['Work on tasks', 'assigned to you.'],
+    intro: 'A 12-week internship that feels like real work. Tell us your skills and interests, and ARINSA AI MINDS assigns you tasks and projects — with deadlines, submissions and reviewer feedback.',
+    facts: [['12 Weeks', 'Duration'], ['Online · assigned work', 'Format'], ['Matched to your interest', 'Track'], ['Certificates', 'Welcome + completion']],
+    audiences: [
+      ['students', 'Final-year students', 'Perfect when your college requires a 3-month internship, or you want genuine work experience before graduating.'],
+      ['pros', 'Freshers & career changers', 'Fill a gap on your resume with recent, structured, reviewed work in the area you want to grow in.'],
+      ['noncs', 'Non-CS & non-science backgrounds', 'Choose an area that fits you — such as QA, support or development — and receive work matched to your current level.'],
+    ],
+    prerequisites: [['Some technical foundation', 'Work is matched to your profile and level.'], ['Your resume', 'Used to understand your experience.'], ['About 2–3 hours a day', 'To meet task deadlines.']],
+    stages: [
+      ['Tell us about you', 'Complete your internship profile with your education, skills and area of interest.'],
+      ['Get your work', 'Receive tasks and projects matched to your profile, with clear instructions.'],
+      ['Submit & improve', 'Submit your work and refine it based on reviewer feedback.'],
+      ['Complete', 'Finish your assigned work and receive your completion certificate.'],
+    ],
+    topics: ['Development', 'Testing / QA', 'Technical support', 'AI / ML', 'Generative AI', 'Full stack', 'DevOps', 'and more'],
+    included: ['Personalised internship profile', 'Tasks and projects assigned by ARINSA AI MINDS', 'Track matched to your area of interest', 'Reviewer feedback on submissions', 'Welcome Certificate', 'Completion Certificate with public Credential ID'],
+    outcomes: ['Real assigned-work experience', 'Experience with deadlines and reviews', 'Specialised work in your chosen area', 'A verifiable certificate'],
+    faqs: [
+      ['How is the work chosen?', 'Based on the profile you submit — your skills, experience and area of interest — so the work suits your level and goals.'],
+      ['Can I choose a non-coding area?', 'Yes. Areas include testing, support and others alongside development and AI. Choose what fits your interest.'],
+      ['Is this a remote internship?', 'Yes. You work online, submit through the student portal and receive feedback there.'],
+    ],
+  },
+  career: {
+    name: 'Career Internship',
+    kicker: 'JOB ASSISTANCE PROGRAMME',
+    headline: ['Build experience.', 'Get job-ready.'],
+    intro: 'A 24-week internship for people focused on getting hired. Combine long-term assigned work with a mock interview, resume support and job assistance.',
+    facts: [['24 Weeks', 'Duration'], ['Online · assigned work', 'Format'], ['1 mock interview', 'Interview practice'], ['Job assistance', 'Career support']],
+    audiences: [
+      ['students', 'Final-year students & graduates', 'For students and recent graduates who are actively job hunting and need experience plus interview preparation.'],
+      ['pros', 'Career switchers', 'For working professionals moving into tech who need longer experience, a stronger resume and interview practice.'],
+      ['noncs', 'Non-CS & non-science backgrounds', 'Six months of structured, reviewed work in your chosen area builds the evidence employers look for — regardless of your degree.'],
+    ],
+    prerequisites: [['Some technical foundation', 'Work is matched to your profile.'], ['Your resume', 'We help you improve it.'], ['About 2–3 hours a day', 'Over six months.']],
+    stages: [
+      ['Profile', 'Share your education, skills, resume and area of interest.'],
+      ['Assigned work', 'Complete tasks and projects over 24 weeks with reviewer feedback.'],
+      ['Interview practice', 'Take a mock interview and receive detailed feedback.'],
+      ['Job assistance', 'Get resume support and job opportunities shared with you.'],
+    ],
+    topics: ['Development', 'Testing / QA', 'AI / ML', 'Generative AI', 'Full stack', 'Resume building', 'Interview skills'],
+    included: ['Everything in the Advanced Internship, over 24 weeks', 'One mock interview with detailed feedback', 'Resume building support', 'Job opportunities & application support by email', 'Welcome Certificate', 'Completion Certificate with public Credential ID'],
+    outcomes: ['Six months of reviewed work experience', 'Interview practice and feedback', 'A stronger resume', 'Job opportunities and application support'],
+    faqs: [
+      ['Is a job guaranteed?', 'No. The Career Internship provides job assistance — resume support, interview practice and opportunities. The placement guarantee is only part of the Career Accelerator.'],
+      ['How is it different from the Advanced Internship?', 'It runs for 24 weeks instead of 12 and adds a mock interview, resume building and job assistance.'],
+      ['Can I do this while working?', 'Yes, if you can commit a few hours a day to meet task deadlines.'],
+    ],
+  },
+  career_accelerator: {
+    name: 'Career Accelerator',
+    kicker: 'FLAGSHIP · COURSE + INTERNSHIP + PLACEMENT GUARANTEE*',
+    headline: ['From beginner to', 'career-ready.'],
+    intro: 'ARINSA’s most comprehensive programme — one year of structured learning, technical assignments, real-world projects, internship experience, mock interviews and placement preparation.',
+    facts: [['1 Year', 'Duration'], ['Course + internship', 'Format'], ['3 mock interviews', 'Interview practice'], ['Placement guarantee*', 'Subject to eligibility']],
+    audiences: [
+      ['students', 'Students & recent graduates', 'For anyone aiming for an AI or software career who wants one complete, structured journey from learning to placement.'],
+      ['pros', 'Working professionals', 'For professionals ready to commit to a serious, year-long move into AI and modern software roles.'],
+      ['noncs', 'Non-CS & non-science backgrounds', 'You don’t need to arrive as an expert. The programme starts with foundations and builds up step by step to advanced AI.'],
+    ],
+    prerequisites: [['No CS degree required', 'Foundations are covered first.'], ['A laptop or computer', 'Capable of running Python.'], ['Strong commitment', 'Consistent effort across the year.']],
+    stages: [
+      ['Learn', 'Video lessons and materials from Python fundamentals to Generative AI and Agentic AI.'],
+      ['Build', 'Complete technical assignments and real-world projects.'],
+      ['Intern', 'Move into internship work with ARINSA AI MINDS, ending in a full-time phase.'],
+      ['Prepare', 'Three mock interviews across the programme, with detailed feedback.'],
+      ['Pursue placement', 'Meet the eligibility requirements to progress into placement support.*'],
+    ],
+    topics: ['Python', 'Data & ML', 'Deep Learning', 'Generative AI', 'LLMs', 'RAG', 'AI Agents', 'APIs', 'Real projects'],
+    included: ['Industry-focused video lessons & materials', 'Technical assignments from Python to Agentic AI', 'Real-world projects', 'Internship experience with ARINSA AI MINDS', 'Three mock interviews with feedback', 'Placement-guarantee eligibility tracking*', 'Welcome & Completion Certificates with public Credential ID'],
+    outcomes: ['End-to-end AI and software skills', 'A portfolio of assignments and real projects', 'Internship experience', 'Interview readiness and placement support*'],
+    faqs: [
+      ['Do I need a computer-science background?', 'No. The programme starts with foundations. What matters most is your commitment to learn, practise and complete the work.'],
+      ['How does the placement guarantee work?', 'Students who meet the programme’s eligibility requirements — including completed work, interviews, deadlines and conduct — progress into placement support under the programme terms.*'],
+      ['How much time does it need?', 'It is a serious one-year commitment. Plan for consistent daily effort, especially during the internship phase.'],
+    ],
+    note: '*Placement guarantee is subject to successful completion of applicable programme eligibility requirements and terms.',
+  },
+}
+
+/** Guide on the Programs page: who should pick which programme. */
+export const PROGRAM_GUIDE = [
+  ['I’m a beginner or just curious about tech', 'basic', 'Basic Internship', '2 weeks'],
+  ['I know the basics and want bigger projects', 'professional', 'Professional Internship', '4 weeks'],
+  ['I need a 3-month internship with real assigned work', 'advanced', 'Advanced Internship', '12 weeks'],
+  ['I want work experience and help getting a job', 'career', 'Career Internship', '24 weeks'],
+  ['I want a complete path into an AI career', 'career_accelerator', 'Career Accelerator', '1 year'],
+]

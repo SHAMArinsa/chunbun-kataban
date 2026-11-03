@@ -1,23 +1,41 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-900: #312e81;
+  /* ARINSA blue — built around Primary #1254A6 and Accent #2583D8 */
+  --color-brand-50: #e8f3ff;   /* Soft Blue */
+  --color-brand-100: #d3e7fc;
+  --color-brand-200: #a9cff5;
+  --color-brand-300: #74b0ea;
+  --color-brand-400: #2583d8;  /* Bright Accent Blue */
+  --color-brand-500: #1c6cc2;
+  --color-brand-600: #1254a6;  /* Primary / Logo Blue */
+  --color-brand-700: #0f4789;
+  --color-brand-800: #0b2e59;  /* Deep Navy */
+  --color-brand-900: #081f3d;
+  --color-brand-950: #05162b;
+
+  /* Neutrals tuned to the palette, so every slate-* utility matches it too */
+  --color-slate-50: #f5f9fe;   /* Page Background */
+  --color-slate-100: #edf3fa;
+  --color-slate-200: #d8e7f5;  /* Border */
+  --color-slate-300: #bfd3e6;
+  --color-slate-400: #8ea3b8;
+  --color-slate-500: #60758a;  /* Secondary Text */
+  --color-slate-600: #4a5f75;
+  --color-slate-700: #31475f;
+  --color-slate-800: #1f354f;
+  --color-slate-900: #142a43;  /* Main Text */
+  --color-slate-950: #0b1b2e;
 }
 
 body {
   margin: 0;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  background-color: #f8fafc;
+  background-color: #f5f9fe;
+  color: #142a43;
 }
+
+::selection { background: #2583d8; color: #fff; }
 
 @keyframes timer-blink-red {
   0%, 49% {
