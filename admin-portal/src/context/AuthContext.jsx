@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import apiClient, { setAccessToken, setUnauthorizedHandler } from '../api/client'
 
 const AuthContext = createContext(null)
+const STAFF_ROLES = ['admin', 'instructor']
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -28,7 +29,7 @@ export function AuthProvider({ children }) {
   const loadMe = useCallback(async () => {
     try {
       const { data } = await apiClient.get('/auth/me')
-      if (data.role !== 'admin') {
+      if (!STAFF_ROLES.includes(data.role)) {
         clearAuth()
         return
       }
@@ -58,9 +59,9 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     queryClient.clear()
     const { data } = await apiClient.post('/auth/login', { email, password })
-    if (data.role !== 'admin') {
+    if (!STAFF_ROLES.includes(data.role)) {
       await apiClient.post('/auth/logout')
-      throw new Error('This portal is for admin accounts only.')
+      throw new Error('This portal is for Admin and Instructor accounts only.')
     }
     setAccessToken(data.access_token)
     await loadMe()
@@ -76,7 +77,18 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{
+      user, loading, login, logout, isAdmin: user?.role === 'admin', isInstructor: user?.role === 'instructor',
+      isSuperAdmin: user?.role === 'admin' && !!user?.is_super_admin,
+      // can(area): super admins and instructors (role-restricted elsewhere) pass; regular admins need the area granted.
+      can: (area) => {
+        if (!user) return false
+        if (user.role !== 'admin') return area !== '__super__'
+        if (user.is_super_admin) return true
+        if (area === '__super__') return false
+        return user.permissions == null || user.permissions.includes(area)
+      },
+    }}>
       {children}
     </AuthContext.Provider>
   )
