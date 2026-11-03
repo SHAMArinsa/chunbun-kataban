@@ -1,4 +1,6 @@
+import logging
 import random
+import smtplib
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
@@ -32,11 +34,25 @@ def request_email_otp(db: Session, email: str, purpose: str = "signup") -> None:
     db.add(otp)
     db.commit()
 
-    send_email(
-        to=email,
-        subject="Your ARINSA AI MINDS verification code",
-        body=f"Your verification code is {code}. It expires in {OTP_TTL_MINUTES} minutes. If you didn't request this, you can ignore this email.",
-    )
+    if purpose == "password_reset":
+        subject = "Reset your ARINSA AI MINDS password"
+        body = (f"Your password reset code is {code}. It expires in {OTP_TTL_MINUTES} minutes. "
+                "If you didn't request a password reset, you can ignore this email.")
+    else:
+        subject = "Your ARINSA AI MINDS verification code"
+        body = f"Your verification code is {code}. It expires in {OTP_TTL_MINUTES} minutes. If you didn't request this, you can ignore this email."
+    try:
+        send_email(to=email, subject=subject, body=body)
+    except (smtplib.SMTPException, OSError) as exc:
+        logging.getLogger("email").error("OTP email to %s failed: %r", email, exc)
+        from app.core.config import settings
+        if not settings.is_production:
+            # Development: don't block sign-up on mail problems — print the code to the console.
+            logging.getLogger("email").warning("DEV OTP for %s: %s", email, code)
+            return
+        db.delete(otp)
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="We couldn't send the verification email right now. Please try again in a few minutes.")
 
 
 def verify_email_otp(db: Session, email: str, code: str, purpose: str = "signup") -> None:

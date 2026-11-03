@@ -10,8 +10,14 @@ class LearningMaterialOut(BaseModel):
     week_number: int | None = None
     title: str
     description: str | None = None
-    file_type: str
-    file_size_bytes: int
+    file_type: str | None = None
+    file_size_bytes: int | None = None
+    content_type: str = "file"
+    resource_url: str | None = None
+    chapter_id: int | None = None
+    duration_minutes: int | None = None
+    display_order: int = 0
+    publication_state: str = "published"
     is_platinum_exclusive: bool
     created_at: datetime
     updated_at: datetime
@@ -68,3 +74,13 @@ class LiveClassUpdateRequest(BaseModel):
     start_time: time | None = None
     end_time: time | None = None
     status: str | None = None
+
+
+class MaterialUpdateRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    display_order: int | None = None
+    publication_state: str | None = None  # "published" | "draft"
+    resource_url: str | None = None
+    chapter_id: int | None = None
+    duration_minutes: int | None = None

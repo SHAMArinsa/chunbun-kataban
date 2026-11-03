@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -18,6 +18,14 @@ class PublicProgramOut(BaseModel):
     gst_percent: float
     platform_fee_percent: float
     features: dict
+    # Portal V2 fields (backend-authoritative current price; the client never decides it)
+    tier: str | None = None
+    duration: int | None = None
+    duration_unit: str | None = None
+    current_price_inr: float | None = None
+    current_price_usd: float | None = None
+    offer_live: bool = False
+    offer_end_at: datetime | None = None
 
     class Config:
         from_attributes = True

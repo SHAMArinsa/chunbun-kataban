@@ -1,6 +1,7 @@
 from fastapi import HTTPException, UploadFile, status
 
-ALLOWED_EXTENSIONS = {"pdf", "docx", "xlsx", "xls", "txt", "zip", "rar", "jpg", "jpeg", "png"}
+ALLOWED_EXTENSIONS = {"pdf", "docx", "xlsx", "xls", "txt", "zip", "rar", "jpg", "jpeg", "png", "pptx", "ppt", "doc"}
+VIDEO_EXTENSIONS = {"mp4", "webm", "mov", "m4v"}
 
 # Magic-byte signatures used to verify the file's real content matches its claimed extension,
 # so a video renamed to ".pdf" (or similar) is rejected rather than trusted by extension alone.
@@ -13,6 +14,11 @@ _SIGNATURES: dict[str, tuple[bytes, ...]] = {
     "jpg": (b"\xff\xd8\xff",),
     "jpeg": (b"\xff\xd8\xff",),
     "png": (b"\x89PNG\r\n\x1a\n",),
+    "pptx": (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"),
+    "ppt": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),  # legacy Office (OLE) container
+    "doc": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
+    "xls": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
+    "webm": (b"\x1a\x45\xdf\xa3",),
 }
 
 
@@ -29,6 +35,10 @@ def validate_extension(filename: str) -> str:
 
 
 def validate_signature(ext: str, header_bytes: bytes) -> None:
+    if ext == "txt":  # plain text has no magic number: accept readable text, reject binaries
+        if b"\x00" in header_bytes:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File content does not match its extension (upload rejected)")
+        return
     signatures = _SIGNATURES.get(ext, ())
     if not any(header_bytes.startswith(sig) for sig in signatures):
         raise HTTPException(
@@ -51,4 +61,20 @@ async def read_and_validate_upload(file: UploadFile, max_mb: int) -> tuple[bytes
     content = await file.read()
     validate_size(len(content), max_mb)
     validate_signature(ext, content[:16])
+    return content, ext
+
+
+async def read_and_validate_video(file: UploadFile, max_mb: int) -> tuple[bytes, str]:
+    """MP4/MOV/M4V carry 'ftyp' at byte 4; WebM starts with the EBML magic."""
+    if "." not in (file.filename or ""):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File has no extension")
+    ext = file.filename.rsplit(".", 1)[1].lower()
+    if ext not in VIDEO_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Video type '.{ext}' not allowed. Allowed: {', '.join(sorted(VIDEO_EXTENSIONS))}")
+    content = await file.read()
+    validate_size(len(content), max_mb)
+    ok = content[4:8] == b"ftyp" if ext != "webm" else content.startswith(_SIGNATURES["webm"][0])
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File content is not a valid video (upload rejected)")
     return content, ext

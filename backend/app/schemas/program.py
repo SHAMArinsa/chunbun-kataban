@@ -41,7 +41,7 @@ class ProgramOut(BaseModel):
     gst_percent: float
     platform_fee_percent: float
     features: dict
-    certificate_types: dict
+    certificate_types: dict | list
     default_quiz_pass_percent: float
     default_quiz_max_attempts: int
     default_quiz_attempts_per_day: int

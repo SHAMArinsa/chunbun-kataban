@@ -66,38 +66,22 @@ def _build_suspension_reason(db: Session, violation_type: str, assessment_type: 
 
 
 def _find_relevant_enrollment(db: Session, student_id: int, assessment_type: str | None, assessment_id: int | None) -> ProgramEnrollment | None:
-    program_id = None
-    if assessment_type and assessment_id:
-        try:
-            if assessment_type == "quiz":
-                from app.models.assessment import Quiz
-
-                row = db.get(Quiz, assessment_id)
-                program_id = row.program_id if row else None
-            elif assessment_type == "coding_assignment":
-                from app.models.assessment import CodingAssignment
-
-                row = db.get(CodingAssignment, assessment_id)
-                program_id = row.program_id if row else None
-            elif assessment_type == "project":
-                from app.models.project import Project
-
-                row = db.get(Project, assessment_id)
-                program_id = row.program_id if row else None
-        except Exception:
-            program_id = None
-
-    query = db.query(ProgramEnrollment).filter(
-        ProgramEnrollment.student_id == student_id,
-        ProgramEnrollment.status.in_(ACTIVE_ENROLLMENT_STATUSES),
-    )
-    if program_id:
-        row = query.filter(ProgramEnrollment.program_id == program_id).first()
-        if row:
-            return row
-    # Fall back to any active enrollment for the student — better to suspend the account than
-    # to silently record a confirmed violation with no consequence.
-    return query.first()
+    from app.models.assessment import Quiz, CodingAssignment
+    from app.models.project import Project
+    from app.models.content import LearningMaterial
+    models = {"quiz": Quiz, "coding_assignment": CodingAssignment, "project": Project, "material": LearningMaterial}
+    query = db.query(ProgramEnrollment).filter(ProgramEnrollment.student_id == student_id)
+    if assessment_type not in (None, "file_preview") or assessment_id:
+        model = models.get(assessment_type)
+        resource = db.get(model, assessment_id) if model and assessment_id else None
+        if resource is None or resource.program_id is None:
+            return None
+        query = query.filter(ProgramEnrollment.program_id == resource.program_id)
+    else:
+        query = query.filter(ProgramEnrollment.status.in_(ACTIVE_ENROLLMENT_STATUSES))
+    rows = query.all()
+    # Never suspend an unrelated enrollment or guess among multiple candidates.
+    return rows[0] if len(rows) == 1 else None
 
 
 def record_violation(
@@ -172,6 +156,17 @@ def record_violation(
             )
         )
         suspended = True
+
+    # A confirmed violation ends the running quiz attempt: it is closed with 0 marks so it
+    # counts as a used attempt everywhere (student page, admin MCQ results, reports).
+    if category == "confirmed" and assessment_type == "quiz":
+        from datetime import datetime as _dt, timezone as _tz
+        from app.models.assessment import QuizAttempt
+        q = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id, QuizAttempt.status == "in_progress")
+        q = q.filter(QuizAttempt.id == attempt_id) if attempt_id else q.filter(QuizAttempt.quiz_id == assessment_id)
+        for a in q.all():
+            a.status, a.submitted_at = "auto_submitted", _dt.now(_tz.utc)
+            a.correct_answers, a.score_percent, a.passed = 0, 0, False
 
     db.commit()
     return {"recorded": True, "deduped": False, "category": category, "suspended": suspended}

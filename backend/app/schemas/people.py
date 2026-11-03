@@ -74,6 +74,9 @@ class AdminOut(BaseModel):
     department: str | None = None
     is_super_admin: bool = False
     email: str | None = None
+    permissions: list[str] | None = None
+    is_active: bool = True
+    last_login_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -86,7 +89,14 @@ class AdminCreateRequest(BaseModel):
     designation: str | None = None
     department: str | None = None
     is_super_admin: bool = False
+    permissions: list[str] = []
 
 
 class AdminUpdateRequest(BaseModel):
     is_super_admin: bool | None = None
+    permissions: list[str] | None = None
+    is_active: bool | None = None
+    full_name: str | None = None
+    designation: str | None = None
+    department: str | None = None
+    password: str | None = None

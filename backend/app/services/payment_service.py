@@ -14,21 +14,18 @@ def generate_invoice_number() -> str:
 
 
 def compute_payment(program: InternshipProgram, student: Student) -> dict:
-    """Computes currency/base/fee/total per the pricing rules: INR+GST for Indian citizens, USD+platform fee for international."""
-    offer_is_active = (
-        program.offer_start_date is not None
-        and program.offer_end_date is not None
-        and program.offer_start_date <= date.today() <= program.offer_end_date
-    )
+    """Computes currency/base/fee/total per the pricing rules: INR+GST for Indian citizens, USD+platform fee for international.
+    The base price (regular or time-limited offer) is always decided here, never by the client."""
+    from app.services.v2 import price_for
 
     if student.citizenship_status == "indian":
         currency = "INR"
-        base_amount = Decimal(str(program.offer_price_inr if offer_is_active and program.offer_price_inr is not None else program.price_inr))
+        base_amount, _ = price_for(program, "INR")
         fee_type = "gst"
         fee_percent = Decimal(str(program.gst_percent))
     elif student.citizenship_status == "international":
         currency = "USD"
-        base_amount = Decimal(str(program.offer_price_usd if offer_is_active and program.offer_price_usd is not None else program.price_usd))
+        base_amount, _ = price_for(program, "USD")
         fee_type = "platform_fee"
         fee_percent = Decimal(str(program.platform_fee_percent))
     else:
@@ -80,4 +77,10 @@ def activate_payment(
     if enrollment and enrollment.status == "pending_payment":
         enrollment.status = "active"
         db.add(enrollment)
+    # Portal V2: start the access window, create the tier track, generate the invoice
+    # and Welcome Certificate and queue both e-mails. Callers dispatch after commit
+    # via `payment.pending_delivery_ids` (see app.services.v2_documents.dispatch_pending).
+    from app.services.v2_documents import on_payment_paid  # local import avoids a cycle
+    db.flush()
+    payment.pending_delivery_ids = on_payment_paid(db, payment)
     return payment

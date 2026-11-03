@@ -53,6 +53,21 @@ def save(content: bytes, resource_type: str, original_filename: str) -> str:
     return relative_path
 
 
+def overwrite(relative_path: str, content: bytes, content_type: str = "application/octet-stream") -> None:
+    """Replace the bytes stored at an existing path (used to refresh a document with a new design)."""
+    if settings.STORAGE_PROVIDER == "local":
+        full_path = settings.upload_path / relative_path
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_bytes(content)
+        return
+    try:
+        with _blob_client() as client:
+            client.put(relative_path, content, access="private", content_type=content_type,
+                       add_random_suffix=False, overwrite=True)
+    except BlobError as exc:
+        raise HTTPException(status_code=502, detail="File storage is temporarily unavailable. Please try again.") from exc
+
+
 def resolve(relative_path: str) -> Path:
     return settings.upload_path / relative_path
 
@@ -81,7 +96,9 @@ def download_response(relative_path: str, filename: str, media_type: str | None 
 
     try:
         with _blob_client() as client:
-            result = client.get(relative_path, access="private")
+            # use_cache=False: after a certificate/invoice is refreshed (same path), Vercel's CDN can serve
+            # the old copy for up to 60s. Reading from origin always returns the latest file.
+            result = client.get(relative_path, access="private", use_cache=False)
     except BlobNotFoundError as exc:
         raise HTTPException(status_code=404, detail="File missing on server") from exc
     except BlobError as exc:
@@ -89,9 +106,17 @@ def download_response(relative_path: str, filename: str, media_type: str | None 
     if result is None or result.status_code != 200:
         raise HTTPException(status_code=404, detail="File missing on server")
 
-    safe_filename = filename.replace('"', "").replace("\r", "").replace("\n", "")
     return Response(
         content=result.content,
         media_type=media_type or result.content_type or "application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'},
+        headers={"Content-Disposition": content_disposition(filename)},
     )
+
+
+def content_disposition(filename: str) -> str:
+    """Header-safe Content-Disposition. HTTP headers only allow Latin-1, so names with
+    curly quotes, dashes or non-English letters get an ASCII fallback plus a UTF-8 copy."""
+    from urllib.parse import quote
+    name = (filename or "download").replace("\r", "").replace("\n", "")
+    ascii_name = "".join(c if 32 <= ord(c) < 127 and c not in '"\\' else "_" for c in name)
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name, safe='')}"

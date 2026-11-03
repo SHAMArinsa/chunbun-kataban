@@ -17,6 +17,7 @@ class EnrollmentOut(BaseModel):
     student_id: int
     program_id: int
     program_code: str | None = None
+    program_name: str | None = None
     specialization_track_id: int | None = None
     status: str
     enrolled_at: datetime
